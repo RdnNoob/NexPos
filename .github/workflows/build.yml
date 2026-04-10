@@ -1,0 +1,84 @@
+name: Build NexPos APKs
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout kode
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Beri izin Gradle
+        run: chmod +x ./gradlew
+
+      - name: Build Admin APK (Release)
+        run: ./gradlew :app-admin:assembleRelease --no-daemon
+
+      - name: Build Laundry APK (Release)
+        run: ./gradlew :app-laundry:assembleRelease --no-daemon
+
+      - name: Upload Admin APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NexPos-Admin-APK
+          path: app-admin/build/outputs/apk/release/app-admin-release-unsigned.apk
+          retention-days: 30
+
+      - name: Upload Laundry APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NexPos-Laundry-APK
+          path: app-laundry/build/outputs/apk/release/app-laundry-release-unsigned.apk
+          retention-days: 30
+
+  build-debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout kode
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Beri izin Gradle
+        run: chmod +x ./gradlew
+
+      - name: Build semua APK (Debug)
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload Admin APK Debug
+        uses: actions/upload-artifact@v4
+        with:
+          name: NexPos-Admin-Debug-APK
+          path: app-admin/build/outputs/apk/debug/app-admin-debug.apk
+          retention-days: 7
+
+      - name: Upload Laundry APK Debug
+        uses: actions/upload-artifact@v4
+        with:
+          name: NexPos-Laundry-Debug-APK
+          path: app-laundry/build/outputs/apk/debug/app-laundry-debug.apk
+          retention-days: 7
