@@ -30,6 +30,7 @@ fun SplashScreen(
     viewModel: LaundrySplashViewModel = hiltViewModel()
 ) {
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    var hasNavigated by remember { mutableStateOf(false) }
 
     // --- Animasi logo: scale spring bounce ---
     var logoVisible by remember { mutableStateOf(false) }
@@ -102,20 +103,19 @@ fun SplashScreen(
         delay(300)
         taglineVisible = true
         delay(1400)
-        when (isLoggedIn) {
-            true -> onNavigateToHome()
-            false -> onNavigateToLogin()
-            null -> {
-                delay(500)
-                if (isLoggedIn == true) onNavigateToHome() else onNavigateToLogin()
-            }
+        if (!hasNavigated) {
+            hasNavigated = true
+            if (isLoggedIn == true) onNavigateToHome() else onNavigateToLogin()
         }
     }
 
     LaunchedEffect(isLoggedIn) {
-        if (isLoggedIn != null && taglineVisible) {
+        if (isLoggedIn != null && taglineVisible && !hasNavigated) {
             delay(600)
-            if (isLoggedIn == true) onNavigateToHome() else onNavigateToLogin()
+            if (!hasNavigated) {
+                hasNavigated = true
+                if (isLoggedIn == true) onNavigateToHome() else onNavigateToLogin()
+            }
         }
     }
 

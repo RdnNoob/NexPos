@@ -124,9 +124,13 @@ router.put("/status", authenticateToken, async (req: AuthRequest, res: Response)
 
   try {
     const result = await pool.query(
-      `UPDATE transactions SET status = $1, updated_at = NOW() 
-       WHERE id = $2 RETURNING *`,
-      [status.toLowerCase(), transactionId]
+      `UPDATE transactions t SET status = $1, updated_at = NOW()
+       FROM outlets o
+       WHERE t.id = $2
+       AND t.outlet_id = o.id
+       AND (o.owner_id = $3 OR t.outlet_id = $4)
+       RETURNING t.*`,
+      [status.toLowerCase(), transactionId, req.userId, req.outletId ?? null]
     );
 
     if (result.rows.length === 0) {

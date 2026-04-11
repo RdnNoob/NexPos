@@ -184,11 +184,11 @@ fun DashboardScreen(
                         }
                     }
                 }
-                if (state.error != null) {
+                state.error?.let { error ->
                     item {
                         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
                             Text(
-                                state.error!!,
+                                error,
                                 modifier = Modifier.padding(12.dp),
                                 color = MaterialTheme.colorScheme.onErrorContainer
                             )

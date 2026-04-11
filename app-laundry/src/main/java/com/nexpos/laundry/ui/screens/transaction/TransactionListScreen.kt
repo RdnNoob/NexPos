@@ -34,10 +34,9 @@ fun TransactionListScreen(
         if (state.successMessage != null) viewModel.clearMessage()
     }
 
-    if (selectedTx != null) {
-        val tx = selectedTx!!
+    selectedTx?.let { tx ->
         val currentIdx = STATUS_FLOW.indexOf(tx.status.lowercase())
-        val nextStatus = if (currentIdx < STATUS_FLOW.size - 1) STATUS_FLOW[currentIdx + 1] else null
+        val nextStatus = if (currentIdx >= 0 && currentIdx < STATUS_FLOW.size - 1) STATUS_FLOW[currentIdx + 1] else null
 
         AlertDialog(
             onDismissRequest = { selectedTx = null },

@@ -96,20 +96,22 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
     }
     const outlet = outletResult.rows[0];
 
-    const deviceCountResult = await pool.query(
-      "SELECT COUNT(*) FROM devices WHERE owner_id = $1",
-      [outlet.owner_id]
-    );
-    const deviceCount = parseInt(deviceCountResult.rows[0].count);
-    if (deviceCount >= 5) {
-      res.status(403).json({ message: "Batas maksimal 5 device per owner tercapai" });
-      return;
-    }
-
     const existingDevice = await pool.query(
       "SELECT * FROM devices WHERE device_id = $1",
       [deviceId]
     );
+
+    if (existingDevice.rows.length === 0) {
+      const deviceCountResult = await pool.query(
+        "SELECT COUNT(*) FROM devices WHERE owner_id = $1",
+        [outlet.owner_id]
+      );
+      const deviceCount = parseInt(deviceCountResult.rows[0].count);
+      if (deviceCount >= 5) {
+        res.status(403).json({ message: "Batas maksimal 5 device per owner tercapai" });
+        return;
+      }
+    }
 
     let device;
     if (existingDevice.rows.length > 0) {

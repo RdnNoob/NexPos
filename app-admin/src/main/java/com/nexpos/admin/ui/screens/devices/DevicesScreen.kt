@@ -30,15 +30,15 @@ fun DevicesScreen(
         if (state.message != null) viewModel.clearMessage()
     }
 
-    if (deviceToLogout != null) {
+    deviceToLogout?.let { device ->
         AlertDialog(
             onDismissRequest = { deviceToLogout = null },
             title = { Text("Force Logout Device") },
-            text = { Text("Yakin ingin paksa logout device '${deviceToLogout!!.deviceName}'? Device akan otomatis keluar saat request berikutnya.") },
+            text = { Text("Yakin ingin paksa logout device '${device.deviceName}'? Device akan otomatis keluar saat request berikutnya.") },
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.forceLogout(deviceToLogout!!.id)
+                        viewModel.forceLogout(device.id)
                         deviceToLogout = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
