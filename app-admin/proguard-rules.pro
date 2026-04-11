@@ -75,7 +75,37 @@
 -dontwarn dagger.**
 -keep class dagger.** { *; }
 -keep class javax.inject.** { *; }
--keep class * extends dagger.hilt.android.internal.managers.ViewComponentManager$FragmentContextWrapper { *; }
+
+# Pertahankan Application @HiltAndroidApp
+-keep @dagger.hilt.android.HiltAndroidApp class * { *; }
+
+# Pertahankan Activity/Fragment @AndroidEntryPoint
+-keep @dagger.hilt.android.AndroidEntryPoint class * { *; }
+
+# Pertahankan ViewModel @HiltViewModel beserta constructor-nya
+-keep @dagger.hilt.android.lifecycle.HiltViewModel class * { *; }
+-keepclasseswithmembers class * {
+    @dagger.hilt.android.lifecycle.HiltViewModel <init>(...);
+}
+
+# Pertahankan kelas-kelas generated Hilt
+-keep class **_HiltModules { *; }
+-keep class **_HiltModules$* { *; }
+-keep class **_Factory { *; }
+-keep class **_GeneratedInjector { *; }
+-keep class **_ComponentTreeDeps { *; }
+-keep class **_MembersInjector { *; }
+-keep class dagger.hilt.android.internal.** { *; }
+-keep class hilt_aggregated_deps.** { *; }
+
+# Pertahankan semua class @Inject constructor
+-keepclasseswithmembers class * {
+    @javax.inject.Inject <init>(...);
+}
+-keepclassmembers class * {
+    @javax.inject.Inject <fields>;
+    @javax.inject.Inject <methods>;
+}
 
 # ============= Compose =============
 -dontwarn androidx.compose.**
