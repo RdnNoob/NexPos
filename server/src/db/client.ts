@@ -51,6 +51,14 @@ export async function initDb() {
         updated_at TIMESTAMP DEFAULT NOW()
       );
     `);
+    await client.query(`
+      ALTER TABLE transactions
+      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
+
+      UPDATE transactions
+      SET updated_at = COALESCE(updated_at, created_at, NOW())
+      WHERE updated_at IS NULL;
+    `);
     console.log("[DB] Tabel berhasil dibuat/diverifikasi");
   } finally {
     client.release();

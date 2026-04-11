@@ -8,6 +8,7 @@ data class TransactionInfo(
     val amount: Double,
     val status: String,
     val createdAt: String,
+    val updatedAt: String? = null,
     val outletName: String? = null
 )
 

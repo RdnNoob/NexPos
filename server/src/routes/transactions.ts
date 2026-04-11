@@ -51,6 +51,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Prom
         amount: parseFloat(t.amount),
         status: t.status,
         createdAt: t.created_at,
+        updatedAt: t.updated_at,
         outletName: t.outlet_name ?? null,
       })),
     });
@@ -103,6 +104,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response): Pro
       amount: parseFloat(t.amount),
       status: t.status,
       createdAt: t.created_at,
+      updatedAt: t.updated_at,
       outletName,
     });
   } catch (err) {
@@ -151,6 +153,7 @@ router.put("/status", authenticateToken, async (req: AuthRequest, res: Response)
       amount: parseFloat(t.amount),
       status: t.status,
       createdAt: t.created_at,
+      updatedAt: t.updated_at,
       outletName: t.outlet_name ?? null,
     });
   } catch (err) {

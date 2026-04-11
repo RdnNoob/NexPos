@@ -10,6 +10,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.io.IOException
 import javax.inject.Inject
 
 data class DeviceAuthState(
@@ -67,8 +68,10 @@ class DeviceAuthViewModel @Inject constructor(
                     }
                     _state.value = DeviceAuthState(error = msg)
                 }
+            } catch (e: IOException) {
+                _state.value = DeviceAuthState(error = "Tidak bisa menjangkau server NexPos. Pastikan koneksi internet aktif lalu coba lagi.")
             } catch (e: Exception) {
-                _state.value = DeviceAuthState(error = "Gagal terhubung ke server. Periksa koneksi internet Anda.")
+                _state.value = DeviceAuthState(error = "Respons server tidak dapat diproses. Coba lagi beberapa saat lagi.")
             }
         }
     }

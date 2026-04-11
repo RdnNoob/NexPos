@@ -60,8 +60,13 @@ fun NexPosTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
+            val controller = WindowCompat.getInsetsController(window, view)
             window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            window.navigationBarColor = colorScheme.background.toArgb()
+            controller.isAppearanceLightStatusBars = !darkTheme
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                controller.isAppearanceLightNavigationBars = !darkTheme
+            }
         }
     }
 

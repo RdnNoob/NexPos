@@ -10,6 +10,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.io.IOException
 import javax.inject.Inject
 
 data class AuthState(
@@ -54,8 +55,10 @@ class AuthViewModel @Inject constructor(
                     }
                     _state.value = AuthState(error = msg)
                 }
+            } catch (e: IOException) {
+                _state.value = AuthState(error = "Tidak bisa menjangkau server NexPos. Pastikan koneksi internet aktif lalu coba lagi.")
             } catch (e: Exception) {
-                _state.value = AuthState(error = "Gagal terhubung ke server. Periksa koneksi internet Anda.")
+                _state.value = AuthState(error = "Respons server tidak dapat diproses. Coba lagi beberapa saat lagi.")
             }
         }
     }
@@ -91,8 +94,10 @@ class AuthViewModel @Inject constructor(
                     }
                     _state.value = AuthState(error = msg)
                 }
+            } catch (e: IOException) {
+                _state.value = AuthState(error = "Tidak bisa menjangkau server NexPos. Pastikan koneksi internet aktif lalu coba lagi.")
             } catch (e: Exception) {
-                _state.value = AuthState(error = "Gagal terhubung ke server. Periksa koneksi internet Anda.")
+                _state.value = AuthState(error = "Respons server tidak dapat diproses. Coba lagi beberapa saat lagi.")
             }
         }
     }
