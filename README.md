@@ -62,7 +62,7 @@ Saat server start, backend akan memastikan tabel utama tersedia:
 - `devices`
 - `transactions`
 
-Server juga menjalankan migrasi aman untuk memastikan tabel `transactions` memiliki kolom `updated_at`. Jika database Railway sudah dibuat sebelum kolom ini ditambahkan, kolom akan dibuat otomatis dengan:
+Server juga menjalankan migrasi aman untuk memastikan database lama di Railway memiliki kolom-kolom yang dibutuhkan oleh versi terbaru, termasuk `transactions.updated_at`. Jika database Railway sudah dibuat sebelum kolom ini ditambahkan, kolom akan dibuat otomatis dengan:
 
 ```sql
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
