@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import pool, { initDb } from "../db/client";
+import pool, { ensureRuntimeSchema, initDb } from "../db/client";
 
 const router = Router();
 
@@ -86,6 +86,7 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
   }
 
   try {
+    await ensureRuntimeSchema();
     const outletResult = await pool.query(
       "SELECT * FROM outlets WHERE activation_code = $1",
       [activationCode]
