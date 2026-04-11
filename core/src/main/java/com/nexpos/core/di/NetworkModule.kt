@@ -34,8 +34,11 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideRetrofit(client: OkHttpClient): Retrofit {
+        val baseUrl = BuildConfig.BASE_URL.let { url ->
+            if (url.endsWith("/")) url else "$url/"
+        }
         return Retrofit.Builder()
-            .baseUrl(BuildConfig.BASE_URL)
+            .baseUrl(baseUrl)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

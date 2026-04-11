@@ -29,6 +29,7 @@ fun SplashScreen(
     viewModel: SplashViewModel = hiltViewModel()
 ) {
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    var hasNavigated by remember { mutableStateOf(false) }
 
     // --- Animasi logo: scale spring bounce ---
     val logoScale by animateFloatAsState(
@@ -102,21 +103,19 @@ fun SplashScreen(
         delay(300)
         taglineVisible = true
         delay(1400)
-        when (isLoggedIn) {
-            true -> onNavigateToDashboard()
-            false -> onNavigateToLogin()
-            null -> {
-                // Tunggu state selesai
-                delay(500)
-                if (isLoggedIn == true) onNavigateToDashboard() else onNavigateToLogin()
-            }
+        if (!hasNavigated) {
+            hasNavigated = true
+            if (isLoggedIn == true) onNavigateToDashboard() else onNavigateToLogin()
         }
     }
 
     LaunchedEffect(isLoggedIn) {
-        if (isLoggedIn != null && taglineVisible) {
+        if (isLoggedIn != null && taglineVisible && !hasNavigated) {
             delay(600)
-            if (isLoggedIn == true) onNavigateToDashboard() else onNavigateToLogin()
+            if (!hasNavigated) {
+                hasNavigated = true
+                if (isLoggedIn == true) onNavigateToDashboard() else onNavigateToLogin()
+            }
         }
     }
 
