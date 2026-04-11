@@ -7,6 +7,7 @@ import com.nexpos.core.data.local.SessionManager
 import com.nexpos.core.data.model.LoginRequest
 import com.nexpos.core.data.model.RegisterRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -47,20 +48,21 @@ class AuthViewModel @Inject constructor(
                         _state.value = AuthState(error = "Respons server tidak lengkap, coba lagi")
                     }
                 } else {
-                    val errorBody = try { response.errorBody()?.string() } catch (_: Exception) { null }
-                    val msg = when (response.code()) {
+                    val serverMsg = tryParseErrorBody(response.errorBody()?.string())
+                    val msg = serverMsg ?: when (response.code()) {
                         400 -> "Email dan password wajib diisi"
                         401 -> "Email atau password salah"
                         500 -> "Terjadi kesalahan server, coba lagi nanti"
-                        else -> errorBody?.let { parseServerMessage(it) }
-                            ?: "Login gagal (${response.code()})"
+                        else -> "Login gagal (${response.code()})"
                     }
                     _state.value = AuthState(error = msg)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: IOException) {
-                _state.value = AuthState(error = "Tidak bisa menjangkau server NexPos. Pastikan koneksi internet aktif lalu coba lagi.")
+                _state.value = AuthState(error = "Tidak bisa menjangkau server. Pastikan koneksi internet aktif.")
             } catch (e: Exception) {
-                val detail = e.message?.take(120) ?: e.javaClass.simpleName
+                val detail = e.message?.take(150) ?: e.javaClass.simpleName
                 _state.value = AuthState(error = "Login gagal: $detail")
             }
         }
@@ -89,40 +91,37 @@ class AuthViewModel @Inject constructor(
                         _state.value = AuthState(error = "Respons server tidak lengkap, coba lagi")
                     }
                 } else {
-                    val errorBody = try { response.errorBody()?.string() } catch (_: Exception) { null }
-                    val msg = when (response.code()) {
+                    val serverMsg = tryParseErrorBody(response.errorBody()?.string())
+                    val msg = serverMsg ?: when (response.code()) {
                         400 -> "Data tidak lengkap"
                         409 -> "Email sudah terdaftar"
                         500 -> "Terjadi kesalahan server, coba lagi nanti"
-                        else -> errorBody?.let { parseServerMessage(it) }
-                            ?: "Pendaftaran gagal (${response.code()})"
+                        else -> "Pendaftaran gagal (${response.code()})"
                     }
                     _state.value = AuthState(error = msg)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: IOException) {
-                _state.value = AuthState(error = "Tidak bisa menjangkau server NexPos. Pastikan koneksi internet aktif lalu coba lagi.")
+                _state.value = AuthState(error = "Tidak bisa menjangkau server. Pastikan koneksi internet aktif.")
             } catch (e: Exception) {
-                val detail = e.message?.take(120) ?: e.javaClass.simpleName
+                val detail = e.message?.take(150) ?: e.javaClass.simpleName
                 _state.value = AuthState(error = "Pendaftaran gagal: $detail")
             }
         }
     }
 
-    private fun parseServerMessage(errorBody: String): String? {
+    private fun tryParseErrorBody(errorBody: String?): String? {
+        if (errorBody.isNullOrBlank()) return null
         return try {
-            val trimmed = errorBody.trim()
-            if (trimmed.startsWith("{")) {
-                val regex = Regex("\"message\"\\s*:\\s*\"([^\"]+)\"")
-                regex.find(trimmed)?.groupValues?.get(1)
-            } else null
+            val regex = Regex("\"message\"\\s*:\\s*\"([^\"]+)\"")
+            regex.find(errorBody)?.groupValues?.get(1)
         } catch (_: Exception) { null }
     }
 
     fun logout() {
         viewModelScope.launch {
-            try {
-                session.clearSession()
-            } catch (_: Exception) { }
+            try { session.clearSession() } catch (_: Exception) { }
         }
     }
 
