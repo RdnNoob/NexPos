@@ -22,6 +22,16 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Prom
         ORDER BY t.created_at DESC
       `;
       params = [parseInt(outletId as string), req.userId];
+    } else if (req.outletId) {
+      // FIX: Kasir device — hanya tampilkan transaksi outlet yang sedang aktif
+      query = `
+        SELECT t.*, o.name as outlet_name 
+        FROM transactions t 
+        LEFT JOIN outlets o ON t.outlet_id = o.id 
+        WHERE t.outlet_id = $1
+        ORDER BY t.created_at DESC
+      `;
+      params = [req.outletId];
     } else {
       query = `
         SELECT t.*, o.name as outlet_name 
@@ -61,7 +71,8 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response): Pro
   }
 
   try {
-    let targetOutletId = outletId;
+    // FIX: Prioritaskan outlet dari JWT token (kasir device), lalu dari body, lalu fallback
+    let targetOutletId = outletId || req.outletId;
     if (!targetOutletId) {
       const outletResult = await pool.query(
         "SELECT id FROM outlets WHERE owner_id = $1 LIMIT 1",

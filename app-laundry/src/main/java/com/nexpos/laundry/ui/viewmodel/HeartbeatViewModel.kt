@@ -39,4 +39,9 @@ class HeartbeatViewModel @Inject constructor(
             }
         }
     }
+
+    // FIX: Clear session on logout so device is properly logged out
+    fun logout() {
+        viewModelScope.launch { session.clearSession() }
+    }
 }

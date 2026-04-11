@@ -60,4 +60,9 @@ class DashboardViewModel @Inject constructor(
             }
         }
     }
+
+    // FIX: Clear session on logout so user doesn't stay logged in
+    fun logout() {
+        viewModelScope.launch { session.clearSession() }
+    }
 }

@@ -38,7 +38,11 @@ fun HomeScreen(
             text = { Text("Yakin ingin keluar dari outlet ini?") },
             confirmButton = {
                 Button(
-                    onClick = { onLogout() },
+                    onClick = {
+                        // FIX: Clear session before navigating to login
+                        heartbeatViewModel.logout()
+                        onLogout()
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) { Text("Keluar") }
             },

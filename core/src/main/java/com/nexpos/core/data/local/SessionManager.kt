@@ -10,6 +10,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.util.UUID
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "nexpos_session")
 
@@ -36,6 +37,15 @@ class SessionManager(private val context: Context) {
 
     fun getBearerToken(): Flow<String?> = context.dataStore.data.map {
         it[TOKEN_KEY]?.let { token -> "Bearer $token" }
+    }
+
+    // FIX: Persists device ID so the same device doesn't register as new every session
+    suspend fun getOrCreateDeviceId(): String {
+        val existing = context.dataStore.data.first()[DEVICE_ID_KEY]
+        if (!existing.isNullOrBlank()) return existing
+        val newId = UUID.randomUUID().toString()
+        context.dataStore.edit { it[DEVICE_ID_KEY] = newId }
+        return newId
     }
 
     suspend fun saveAdminSession(token: String, user: com.nexpos.core.data.model.UserInfo) {
@@ -67,7 +77,12 @@ class SessionManager(private val context: Context) {
     }
 
     suspend fun clearSession() {
-        context.dataStore.edit { it.clear() }
+        context.dataStore.edit { prefs ->
+            // FIX: Keep device_id persisted across logout so device stays consistent
+            val savedDeviceId = prefs[DEVICE_ID_KEY]
+            prefs.clear()
+            savedDeviceId?.let { prefs[DEVICE_ID_KEY] = it }
+        }
     }
 
     suspend fun isLoggedIn(): Boolean = getToken() != null

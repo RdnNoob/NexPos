@@ -49,7 +49,11 @@ fun DashboardScreen(
                     IconButton(onClick = { viewModel.loadDashboard() }) {
                         Icon(Icons.Default.Refresh, "Refresh", tint = MaterialTheme.colorScheme.onPrimary)
                     }
-                    IconButton(onClick = onLogout) {
+                    // FIX: Call logout() to clear session before navigating away
+                    IconButton(onClick = {
+                        viewModel.logout()
+                        onLogout()
+                    }) {
                         Icon(Icons.Default.Logout, "Keluar", tint = MaterialTheme.colorScheme.onPrimary)
                     }
                 }

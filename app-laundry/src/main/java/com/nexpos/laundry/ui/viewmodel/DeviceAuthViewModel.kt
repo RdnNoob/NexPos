@@ -10,7 +10,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import java.util.UUID
 import javax.inject.Inject
 
 data class DeviceAuthState(
@@ -33,7 +32,8 @@ class DeviceAuthViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = DeviceAuthState(isLoading = true)
             try {
-                val deviceId = getOrCreateDeviceId()
+                // FIX: Use persistent device ID — same device won't register as new every session
+                val deviceId = session.getOrCreateDeviceId()
                 val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
                 val response = api.loginDevice(
                     DeviceLoginRequest(
@@ -62,10 +62,6 @@ class DeviceAuthViewModel @Inject constructor(
                 _state.value = DeviceAuthState(error = "Gagal terhubung ke server: ${e.message}")
             }
         }
-    }
-
-    private fun getOrCreateDeviceId(): String {
-        return UUID.randomUUID().toString()
     }
 
     fun clearError() { _state.value = _state.value.copy(error = null) }

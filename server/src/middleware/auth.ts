@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 export interface AuthRequest extends Request {
   userId?: number;
   userEmail?: string;
+  outletId?: number;
 }
 
 export function authenticateToken(
@@ -21,9 +22,15 @@ export function authenticateToken(
 
   try {
     const secret = process.env.JWT_SECRET || "nexpos_secret";
-    const decoded = jwt.verify(token, secret) as { userId: number; email: string };
+    // FIX: Extract outletId from JWT so kasir transactions go to the correct outlet
+    const decoded = jwt.verify(token, secret) as {
+      userId: number;
+      email: string;
+      outletId?: number;
+    };
     req.userId = decoded.userId;
     req.userEmail = decoded.email;
+    req.outletId = decoded.outletId;
     next();
   } catch {
     res.status(403).json({ message: "Token tidak valid atau sudah kadaluarsa" });
