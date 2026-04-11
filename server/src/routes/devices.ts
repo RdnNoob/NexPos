@@ -10,7 +10,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Prom
       `SELECT d.*, o.name as outlet_name 
        FROM devices d 
        LEFT JOIN outlets o ON d.outlet_id = o.id 
-       WHERE d.owner_id = $1 
+       WHERE d.owner_id::text = $1::text 
        ORDER BY d.last_seen DESC NULLS LAST`,
       [req.userId]
     );
@@ -46,7 +46,7 @@ router.post("/heartbeat", authenticateToken, async (req: AuthRequest, res: Respo
 
     await pool.query(
       `UPDATE devices SET status = 'offline' 
-       WHERE owner_id = $1 
+       WHERE owner_id::text = $1::text 
        AND device_id != $2 
        AND (last_seen IS NULL OR last_seen < NOW() - INTERVAL '2 minutes')`,
       [req.userId, deviceId]
@@ -68,7 +68,7 @@ router.post("/force-logout", authenticateToken, async (req: AuthRequest, res: Re
 
   try {
     const result = await pool.query(
-      "UPDATE devices SET status = 'offline', refresh_token = NULL WHERE id = $1 AND owner_id = $2 RETURNING id",
+      "UPDATE devices SET status = 'offline', refresh_token = NULL WHERE id = $1 AND owner_id::text = $2::text RETURNING id",
       [deviceId, req.userId]
     );
 

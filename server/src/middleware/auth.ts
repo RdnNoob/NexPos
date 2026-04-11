@@ -2,9 +2,9 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
 export interface AuthRequest extends Request {
-  userId?: number;
+  userId?: string | number;
   userEmail?: string;
-  outletId?: number;
+  outletId?: string | number;
 }
 
 export function authenticateToken(
@@ -24,9 +24,9 @@ export function authenticateToken(
     const secret = process.env.JWT_SECRET || "nexpos_secret";
     // FIX: Extract outletId from JWT so kasir transactions go to the correct outlet
     const decoded = jwt.verify(token, secret) as {
-      userId: number;
+      userId: string | number;
       email: string;
-      outletId?: number;
+      outletId?: string | number;
     };
     req.userId = decoded.userId;
     req.userEmail = decoded.email;

@@ -13,6 +13,13 @@ function generateToken(payload: object): string {
   return jwt.sign(payload, secret, { expiresIn } as jwt.SignOptions);
 }
 
+function toClientId(value: unknown): unknown {
+  const numberValue = Number(value);
+  return Number.isSafeInteger(numberValue) && String(value) === String(numberValue)
+    ? numberValue
+    : value;
+}
+
 router.post("/register", async (req: Request, res: Response): Promise<void> => {
   const { email, password, name } = req.body;
   if (!email || !password || !name) {
@@ -104,7 +111,7 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
 
     if (existingDevice.rows.length === 0) {
       const deviceCountResult = await pool.query(
-        "SELECT COUNT(*) FROM devices WHERE owner_id = $1",
+        "SELECT COUNT(*) FROM devices WHERE owner_id::text = $1::text",
         [outlet.owner_id]
       );
       const deviceCount = parseInt(deviceCountResult.rows[0].count);
@@ -124,7 +131,7 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
     } else {
       const inserted = await pool.query(
         "INSERT INTO devices (owner_id, outlet_id, device_name, device_id, status, last_seen) VALUES ($1, $2, $3, $4, 'online', NOW()) RETURNING *",
-        [outlet.owner_id, outlet.id, deviceName, deviceId]
+        [String(outlet.owner_id), outlet.id, deviceName, deviceId]
       );
       device = inserted.rows[0];
     }
@@ -139,7 +146,7 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
       outlet: {
         id: outlet.id,
         name: outlet.name,
-        ownerId: outlet.owner_id,
+        ownerId: toClientId(outlet.owner_id),
         activationCode: outlet.activation_code,
       },
       device: {

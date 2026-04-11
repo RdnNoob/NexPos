@@ -11,9 +11,37 @@ const pool = new Pool({
 const migrations = [
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()",
   "ALTER TABLE outlets ADD COLUMN IF NOT EXISTS owner_id INTEGER REFERENCES users(id) ON DELETE CASCADE",
+  `DO $$
+   DECLARE constraint_name text;
+   BEGIN
+     FOR constraint_name IN
+       SELECT kcu.constraint_name
+       FROM information_schema.key_column_usage kcu
+       WHERE kcu.table_name = 'outlets'
+         AND kcu.column_name = 'owner_id'
+         AND kcu.table_schema = current_schema()
+     LOOP
+       EXECUTE format('ALTER TABLE outlets DROP CONSTRAINT IF EXISTS %I', constraint_name);
+     END LOOP;
+   END $$`,
+  "ALTER TABLE outlets ALTER COLUMN owner_id TYPE VARCHAR(255) USING owner_id::text",
   "ALTER TABLE outlets ADD COLUMN IF NOT EXISTS activation_code VARCHAR(50)",
   "ALTER TABLE outlets ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()",
   "ALTER TABLE devices ADD COLUMN IF NOT EXISTS owner_id INTEGER REFERENCES users(id) ON DELETE CASCADE",
+  `DO $$
+   DECLARE constraint_name text;
+   BEGIN
+     FOR constraint_name IN
+       SELECT kcu.constraint_name
+       FROM information_schema.key_column_usage kcu
+       WHERE kcu.table_name = 'devices'
+         AND kcu.column_name = 'owner_id'
+         AND kcu.table_schema = current_schema()
+     LOOP
+       EXECUTE format('ALTER TABLE devices DROP CONSTRAINT IF EXISTS %I', constraint_name);
+     END LOOP;
+   END $$`,
+  "ALTER TABLE devices ALTER COLUMN owner_id TYPE VARCHAR(255) USING owner_id::text",
   "ALTER TABLE devices ADD COLUMN IF NOT EXISTS outlet_id INTEGER REFERENCES outlets(id) ON DELETE CASCADE",
   "ALTER TABLE devices ADD COLUMN IF NOT EXISTS device_name VARCHAR(255)",
   "ALTER TABLE devices ADD COLUMN IF NOT EXISTS device_id VARCHAR(255)",
@@ -58,7 +86,7 @@ export async function initDb() {
 
       CREATE TABLE IF NOT EXISTS outlets (
         id SERIAL PRIMARY KEY,
-        owner_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        owner_id VARCHAR(255) NOT NULL,
         name VARCHAR(255) NOT NULL,
         activation_code VARCHAR(50) UNIQUE NOT NULL,
         created_at TIMESTAMP DEFAULT NOW()
@@ -66,7 +94,7 @@ export async function initDb() {
 
       CREATE TABLE IF NOT EXISTS devices (
         id SERIAL PRIMARY KEY,
-        owner_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        owner_id VARCHAR(255) NOT NULL,
         outlet_id INTEGER REFERENCES outlets(id) ON DELETE CASCADE,
         device_name VARCHAR(255) NOT NULL,
         device_id VARCHAR(255) UNIQUE NOT NULL,

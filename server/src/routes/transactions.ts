@@ -16,7 +16,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Prom
         `SELECT t.*, o.name as outlet_name
          FROM transactions t
          LEFT JOIN outlets o ON t.outlet_id = o.id
-         WHERE t.outlet_id = $1
+         WHERE t.outlet_id::text = $1::text
          ORDER BY t.created_at DESC`,
         [outletId]
       );
@@ -26,7 +26,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Prom
         `SELECT t.*, o.name as outlet_name
          FROM transactions t
          LEFT JOIN outlets o ON t.outlet_id = o.id
-         WHERE t.outlet_id = $1
+         WHERE t.outlet_id::text = $1::text
          ORDER BY t.created_at DESC`,
         [req.outletId]
       );
@@ -36,7 +36,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Prom
         `SELECT t.*, o.name as outlet_name
          FROM transactions t
          LEFT JOIN outlets o ON t.outlet_id = o.id
-         WHERE o.owner_id = $1
+         WHERE o.owner_id::text = $1::text
          ORDER BY t.created_at DESC`,
         [req.userId]
       );
@@ -134,7 +134,7 @@ router.put("/status", authenticateToken, async (req: AuthRequest, res: Response)
        FROM outlets o
        WHERE t.id = $2
          AND t.outlet_id = o.id
-         AND (o.owner_id = $3 OR t.outlet_id = $4)
+         AND (o.owner_id::text = $3::text OR t.outlet_id::text = $4::text)
        RETURNING t.*, o.name as outlet_name`,
       [status.toLowerCase(), transactionId, req.userId, req.outletId ?? null]
     );
