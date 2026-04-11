@@ -1,7 +1,8 @@
 package com.nexpos.admin.ui.navigation
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.*
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
@@ -11,9 +12,11 @@ import com.nexpos.admin.ui.screens.dashboard.DashboardScreen
 import com.nexpos.admin.ui.screens.devices.DevicesScreen
 import com.nexpos.admin.ui.screens.outlets.CreateOutletScreen
 import com.nexpos.admin.ui.screens.outlets.OutletsScreen
+import com.nexpos.admin.ui.screens.splash.SplashScreen
 import com.nexpos.admin.ui.screens.transactions.TransactionsScreen
 
 sealed class AdminScreen(val route: String) {
+    object Splash : AdminScreen("splash")
     object Login : AdminScreen("login")
     object Register : AdminScreen("register")
     object Dashboard : AdminScreen("dashboard")
@@ -26,11 +29,45 @@ sealed class AdminScreen(val route: String) {
     }
 }
 
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun AdminNavGraph() {
     val navController = rememberNavController()
 
-    NavHost(navController = navController, startDestination = AdminScreen.Login.route) {
+    NavHost(
+        navController = navController,
+        startDestination = AdminScreen.Splash.route,
+        enterTransition = {
+            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(300)) +
+                    fadeIn(tween(300))
+        },
+        exitTransition = {
+            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(300)) +
+                    fadeOut(tween(300))
+        },
+        popEnterTransition = {
+            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300)) +
+                    fadeIn(tween(300))
+        },
+        popExitTransition = {
+            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300)) +
+                    fadeOut(tween(300))
+        }
+    ) {
+        composable(
+            AdminScreen.Splash.route,
+            enterTransition = { fadeIn(tween(0)) },
+            exitTransition = { fadeOut(tween(400)) }
+        ) {
+            SplashScreen(
+                onNavigateToLogin = {
+                    navController.navigate(AdminScreen.Login.route) { popUpTo(0) }
+                },
+                onNavigateToDashboard = {
+                    navController.navigate(AdminScreen.Dashboard.route) { popUpTo(0) }
+                }
+            )
+        }
         composable(AdminScreen.Login.route) {
             LoginScreen(
                 onLoginSuccess = { navController.navigate(AdminScreen.Dashboard.route) { popUpTo(0) } },
@@ -69,9 +106,7 @@ fun AdminNavGraph() {
         composable(AdminScreen.Devices.route) {
             DevicesScreen(onNavigateBack = { navController.popBackStack() })
         }
-        composable(
-            AdminScreen.Transactions.route,
-        ) {
+        composable(AdminScreen.Transactions.route) {
             TransactionsScreen(
                 outletId = null,
                 onNavigateBack = { navController.popBackStack() }
