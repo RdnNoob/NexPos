@@ -44,21 +44,24 @@ class AuthViewModel @Inject constructor(
                         session.saveAdminSession(body.token, user)
                         _state.value = AuthState(isSuccess = true)
                     } else {
-                        _state.value = AuthState(error = "Respons server tidak valid")
+                        _state.value = AuthState(error = "Respons server tidak lengkap, coba lagi")
                     }
                 } else {
+                    val errorBody = try { response.errorBody()?.string() } catch (_: Exception) { null }
                     val msg = when (response.code()) {
                         400 -> "Email dan password wajib diisi"
                         401 -> "Email atau password salah"
                         500 -> "Terjadi kesalahan server, coba lagi nanti"
-                        else -> "Login gagal (${response.code()})"
+                        else -> errorBody?.let { parseServerMessage(it) }
+                            ?: "Login gagal (${response.code()})"
                     }
                     _state.value = AuthState(error = msg)
                 }
             } catch (e: IOException) {
                 _state.value = AuthState(error = "Tidak bisa menjangkau server NexPos. Pastikan koneksi internet aktif lalu coba lagi.")
             } catch (e: Exception) {
-                _state.value = AuthState(error = "Respons server tidak dapat diproses. Coba lagi beberapa saat lagi.")
+                val detail = e.message?.take(120) ?: e.javaClass.simpleName
+                _state.value = AuthState(error = "Login gagal: $detail")
             }
         }
     }
@@ -83,23 +86,36 @@ class AuthViewModel @Inject constructor(
                         session.saveAdminSession(body.token, user)
                         _state.value = AuthState(isSuccess = true)
                     } else {
-                        _state.value = AuthState(error = "Respons server tidak valid")
+                        _state.value = AuthState(error = "Respons server tidak lengkap, coba lagi")
                     }
                 } else {
+                    val errorBody = try { response.errorBody()?.string() } catch (_: Exception) { null }
                     val msg = when (response.code()) {
                         400 -> "Data tidak lengkap"
                         409 -> "Email sudah terdaftar"
                         500 -> "Terjadi kesalahan server, coba lagi nanti"
-                        else -> "Pendaftaran gagal (${response.code()})"
+                        else -> errorBody?.let { parseServerMessage(it) }
+                            ?: "Pendaftaran gagal (${response.code()})"
                     }
                     _state.value = AuthState(error = msg)
                 }
             } catch (e: IOException) {
                 _state.value = AuthState(error = "Tidak bisa menjangkau server NexPos. Pastikan koneksi internet aktif lalu coba lagi.")
             } catch (e: Exception) {
-                _state.value = AuthState(error = "Respons server tidak dapat diproses. Coba lagi beberapa saat lagi.")
+                val detail = e.message?.take(120) ?: e.javaClass.simpleName
+                _state.value = AuthState(error = "Pendaftaran gagal: $detail")
             }
         }
+    }
+
+    private fun parseServerMessage(errorBody: String): String? {
+        return try {
+            val trimmed = errorBody.trim()
+            if (trimmed.startsWith("{")) {
+                val regex = Regex("\"message\"\\s*:\\s*\"([^\"]+)\"")
+                regex.find(trimmed)?.groupValues?.get(1)
+            } else null
+        } catch (_: Exception) { null }
     }
 
     fun logout() {
