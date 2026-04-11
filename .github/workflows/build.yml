@@ -76,7 +76,9 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Buat local.properties
-        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          cat local.properties
 
       - name: Accept SDK Licenses
         run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
@@ -98,12 +100,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: NexPos-Admin-Release
-          path: app-admin/build/outputs/apk/release/app-admin-release-unsigned.apk
+          path: app-admin/build/outputs/apk/release/app-admin-release.apk
           retention-days: 30
 
       - name: Upload Laundry APK Release
         uses: actions/upload-artifact@v4
         with:
           name: NexPos-Laundry-Release
-          path: app-laundry/build/outputs/apk/release/app-laundry-release-unsigned.apk
+          path: app-laundry/build/outputs/apk/release/app-laundry-release.apk
           retention-days: 30

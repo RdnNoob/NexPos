@@ -27,6 +27,7 @@ fun TransactionListScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var selectedTx by remember { mutableStateOf<TransactionInfo?>(null) }
+    var receiptTx by remember { mutableStateOf<TransactionInfo?>(null) }
 
     LaunchedEffect(Unit) { viewModel.loadTransactions() }
 
@@ -89,6 +90,35 @@ fun TransactionListScreen(
         )
     }
 
+    receiptTx?.let { tx ->
+        AlertDialog(
+            onDismissRequest = { receiptTx = null },
+            title = { Text("Struk Transaksi") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("================================", style = MaterialTheme.typography.bodySmall)
+                    Text("        NexPos Laundry        ", fontWeight = FontWeight.Bold)
+                    Text("================================", style = MaterialTheme.typography.bodySmall)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("No. Transaksi : #${tx.id}")
+                    Text("Pelanggan     : ${tx.customer}")
+                    Text("Layanan       : ${tx.service ?: "-"}")
+                    Text("Harga         : Rp ${"%,.0f".format(tx.amount)}")
+                    Text("Status        : ${tx.status.replaceFirstChar { it.uppercase() }}")
+                    Text("Tanggal       : ${tx.createdAt.take(10)}")
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("--------------------------------", style = MaterialTheme.typography.bodySmall)
+                    Text("   Terima kasih sudah menjadi", style = MaterialTheme.typography.bodySmall)
+                    Text("       pelanggan kami!        ", style = MaterialTheme.typography.bodySmall)
+                    Text("================================", style = MaterialTheme.typography.bodySmall)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { receiptTx = null }) { Text("Tutup") }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -110,7 +140,9 @@ fun TransactionListScreen(
         }
     ) { padding ->
         if (state.isLoading) {
-            LoadingScreen("Memuat transaksi...")
+            Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+                LoadingScreen("Memuat transaksi...")
+            }
         } else if (state.transactions.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -149,13 +181,25 @@ fun TransactionListScreen(
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.primary
                                 )
-                                if (tx.status != "selesai") {
-                                    Text(
-                                        "Tap untuk update status",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
+                                Row {
+                                    if (tx.status != "selesai") {
+                                        Text(
+                                            "Tap untuk update status",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
                                 }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            TextButton(
+                                onClick = { receiptTx = tx },
+                                contentPadding = PaddingValues(0.dp),
+                                modifier = Modifier.height(28.dp)
+                            ) {
+                                Icon(Icons.Default.Receipt, null, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Lihat Struk", style = MaterialTheme.typography.labelSmall)
                             }
                         }
                     }

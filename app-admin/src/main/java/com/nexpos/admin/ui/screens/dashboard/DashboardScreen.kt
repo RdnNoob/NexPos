@@ -49,7 +49,6 @@ fun DashboardScreen(
                     IconButton(onClick = { viewModel.loadDashboard() }) {
                         Icon(Icons.Default.Refresh, "Refresh", tint = MaterialTheme.colorScheme.onPrimary)
                     }
-                    // FIX: Call logout() to clear session before navigating away
                     IconButton(onClick = {
                         viewModel.logout()
                         onLogout()
@@ -61,7 +60,9 @@ fun DashboardScreen(
         }
     ) { padding ->
         if (state.isLoading) {
-            LoadingScreen("Memuat dashboard...")
+            Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+                LoadingScreen("Memuat dashboard...")
+            }
         } else {
             LazyColumn(
                 modifier = Modifier

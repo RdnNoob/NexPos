@@ -20,3 +20,4 @@ local.properties
 node_modules/
 server/dist/
 server/.env
+push-to-github.sh

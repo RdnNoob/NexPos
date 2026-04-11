@@ -25,6 +25,10 @@ fun OutletsScreen(
 ) {
     val state by viewModel.state.collectAsState()
 
+    LaunchedEffect(Unit) {
+        viewModel.loadOutlets()
+    }
+
     LaunchedEffect(state.successMessage) {
         if (state.successMessage != null) viewModel.clearMessage()
     }
@@ -59,7 +63,9 @@ fun OutletsScreen(
         }
     ) { padding ->
         if (state.isLoading) {
-            LoadingScreen("Memuat outlet...")
+            Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+                LoadingScreen("Memuat outlet...")
+            }
         } else if (state.outlets.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {

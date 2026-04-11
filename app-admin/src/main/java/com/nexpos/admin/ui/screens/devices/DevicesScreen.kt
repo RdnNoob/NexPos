@@ -26,6 +26,10 @@ fun DevicesScreen(
     val state by viewModel.state.collectAsState()
     var deviceToLogout by remember { mutableStateOf<DeviceInfo?>(null) }
 
+    LaunchedEffect(Unit) {
+        viewModel.loadDevices()
+    }
+
     LaunchedEffect(state.message) {
         if (state.message != null) viewModel.clearMessage()
     }
@@ -73,7 +77,9 @@ fun DevicesScreen(
         }
     ) { padding ->
         if (state.isLoading) {
-            LoadingScreen("Memuat device...")
+            Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+                LoadingScreen("Memuat device...")
+            }
         } else if (state.devices.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
