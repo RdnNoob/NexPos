@@ -1,9 +1,13 @@
 package com.nexpos.core.di
 
+import com.google.gson.Gson
 import com.google.gson.GsonBuilder
-import com.google.gson.JsonDeserializationContext
-import com.google.gson.JsonDeserializer
-import com.google.gson.JsonElement
+import com.google.gson.TypeAdapter
+import com.google.gson.TypeAdapterFactory
+import com.google.gson.reflect.TypeToken
+import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonToken
+import com.google.gson.stream.JsonWriter
 import com.nexpos.core.BuildConfig
 import com.nexpos.core.data.api.NexPosApi
 import dagger.Module
@@ -14,26 +18,42 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import java.lang.reflect.Type
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
-private object FlexibleIntDeserializer : JsonDeserializer<Int> {
-    override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): Int {
-        return try {
-            json.asInt
-        } catch (_: Exception) {
-            json.asString.toIntOrNull() ?: 0
-        }
-    }
-}
+private class FlexibleNumberTypeAdapterFactory : TypeAdapterFactory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T> create(gson: Gson, type: TypeToken<T>): TypeAdapter<T>? {
+        return when (type.rawType) {
+            Int::class.java, java.lang.Integer::class.java -> object : TypeAdapter<Int>() {
+                override fun write(out: JsonWriter, value: Int?) {
+                    if (value == null) out.nullValue() else out.value(value)
+                }
+                override fun read(input: JsonReader): Int {
+                    return when (input.peek()) {
+                        JsonToken.STRING -> input.nextString().toIntOrNull() ?: 0
+                        JsonToken.NUMBER -> input.nextInt()
+                        JsonToken.NULL -> { input.nextNull(); 0 }
+                        else -> { input.skipValue(); 0 }
+                    }
+                }
+            } as TypeAdapter<T>
 
-private object FlexibleLongDeserializer : JsonDeserializer<Long> {
-    override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): Long {
-        return try {
-            json.asLong
-        } catch (_: Exception) {
-            json.asString.toLongOrNull() ?: 0L
+            Long::class.java, java.lang.Long::class.java -> object : TypeAdapter<Long>() {
+                override fun write(out: JsonWriter, value: Long?) {
+                    if (value == null) out.nullValue() else out.value(value)
+                }
+                override fun read(input: JsonReader): Long {
+                    return when (input.peek()) {
+                        JsonToken.STRING -> input.nextString().toLongOrNull() ?: 0L
+                        JsonToken.NUMBER -> input.nextLong()
+                        JsonToken.NULL -> { input.nextNull(); 0L }
+                        else -> { input.skipValue(); 0L }
+                    }
+                }
+            } as TypeAdapter<T>
+
+            else -> null
         }
     }
 }
@@ -70,10 +90,7 @@ object NetworkModule {
         }
         val gson = GsonBuilder()
             .setLenient()
-            .registerTypeAdapter(Int::class.java, FlexibleIntDeserializer)
-            .registerTypeAdapter(Int::class.javaObjectType, FlexibleIntDeserializer)
-            .registerTypeAdapter(Long::class.java, FlexibleLongDeserializer)
-            .registerTypeAdapter(Long::class.javaObjectType, FlexibleLongDeserializer)
+            .registerTypeAdapterFactory(FlexibleNumberTypeAdapterFactory())
             .create()
         return Retrofit.Builder()
             .baseUrl(baseUrl)
