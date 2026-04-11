@@ -34,32 +34,47 @@ class DeviceViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
-                val token = "Bearer ${session.getToken() ?: ""}"
+                val tokenRaw = session.getToken()
+                if (tokenRaw.isNullOrEmpty()) {
+                    _state.value = DeviceUiState(error = "Sesi tidak valid")
+                    return@launch
+                }
+                val token = "Bearer $tokenRaw"
                 val res = api.getDevices(token)
                 if (res.isSuccessful) {
                     _state.value = DeviceUiState(devices = res.body()?.devices ?: emptyList())
                 } else {
-                    _state.value = DeviceUiState(error = "Gagal memuat daftar device")
+                    _state.value = DeviceUiState(error = "Gagal memuat daftar device (${res.code()})")
                 }
             } catch (e: Exception) {
-                _state.value = DeviceUiState(error = "Error: ${e.message}")
+                _state.value = DeviceUiState(error = "Gagal terhubung ke server")
             }
         }
     }
 
     fun forceLogout(deviceId: Int) {
         viewModelScope.launch {
+            _state.value = _state.value.copy(error = null)
             try {
-                val token = "Bearer ${session.getToken() ?: ""}"
+                val tokenRaw = session.getToken()
+                if (tokenRaw.isNullOrEmpty()) {
+                    _state.value = _state.value.copy(error = "Sesi tidak valid")
+                    return@launch
+                }
+                val token = "Bearer $tokenRaw"
                 val res = api.forceLogout(token, ForceLogoutRequest(deviceId))
                 if (res.isSuccessful) {
                     _state.value = _state.value.copy(message = "Device berhasil di-force logout")
                     loadDevices()
                 } else {
-                    _state.value = _state.value.copy(error = "Gagal force logout device")
+                    val msg = when (res.code()) {
+                        404 -> "Device tidak ditemukan"
+                        else -> "Gagal force logout device (${res.code()})"
+                    }
+                    _state.value = _state.value.copy(error = msg)
                 }
             } catch (e: Exception) {
-                _state.value = _state.value.copy(error = "Error: ${e.message}")
+                _state.value = _state.value.copy(error = "Gagal terhubung ke server")
             }
         }
     }

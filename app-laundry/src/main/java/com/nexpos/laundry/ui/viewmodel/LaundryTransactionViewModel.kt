@@ -33,27 +33,41 @@ class LaundryTransactionViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
-                val token = "Bearer ${session.getToken() ?: ""}"
+                val tokenRaw = session.getToken()
+                if (tokenRaw.isNullOrEmpty()) {
+                    _state.value = LaundryTxState(error = "Sesi tidak valid, silakan login ulang")
+                    return@launch
+                }
+                val token = "Bearer $tokenRaw"
                 val outletId = session.getOutletId()
                 val res = api.getTransactions(token, outletId)
                 if (res.isSuccessful) {
                     _state.value = LaundryTxState(transactions = res.body()?.transactions ?: emptyList())
                 } else {
-                    _state.value = LaundryTxState(error = "Gagal memuat transaksi")
+                    _state.value = LaundryTxState(error = "Gagal memuat transaksi (${res.code()})")
                 }
             } catch (e: Exception) {
-                _state.value = LaundryTxState(error = "Error: ${e.message}")
+                _state.value = LaundryTxState(error = "Gagal terhubung ke server. Periksa koneksi internet.")
             }
         }
     }
 
     fun createTransaction(customer: String, service: String, amount: String) {
+        if (customer.isBlank() || service.isBlank() || amount.isBlank()) {
+            _state.value = _state.value.copy(error = "Semua field wajib diisi")
+            return
+        }
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
-                val token = "Bearer ${session.getToken() ?: ""}"
+                val tokenRaw = session.getToken()
+                if (tokenRaw.isNullOrEmpty()) {
+                    _state.value = _state.value.copy(isLoading = false, error = "Sesi tidak valid")
+                    return@launch
+                }
+                val token = "Bearer $tokenRaw"
                 val amountVal = amount.replace(",", "").replace(".", "").toDoubleOrNull()
-                if (amountVal == null) {
+                if (amountVal == null || amountVal <= 0) {
                     _state.value = _state.value.copy(isLoading = false, error = "Harga tidak valid")
                     return@launch
                 }
@@ -64,30 +78,46 @@ class LaundryTransactionViewModel @Inject constructor(
                 if (res.isSuccessful) {
                     _state.value = _state.value.copy(
                         isLoading = false,
-                        successMessage = "Transaksi untuk ${customer} berhasil dibuat!"
+                        successMessage = "Transaksi untuk ${customer.trim()} berhasil dibuat!"
                     )
                 } else {
-                    _state.value = _state.value.copy(isLoading = false, error = "Gagal membuat transaksi")
+                    val msg = when (res.code()) {
+                        401 -> "Sesi tidak valid, silakan login ulang"
+                        403 -> "Akses ditolak"
+                        else -> "Gagal membuat transaksi (${res.code()})"
+                    }
+                    _state.value = _state.value.copy(isLoading = false, error = msg)
                 }
             } catch (e: Exception) {
-                _state.value = _state.value.copy(isLoading = false, error = "Error: ${e.message}")
+                _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server")
             }
         }
     }
 
     fun updateStatus(transactionId: Int, newStatus: String) {
         viewModelScope.launch {
+            _state.value = _state.value.copy(error = null)
             try {
-                val token = "Bearer ${session.getToken() ?: ""}"
+                val tokenRaw = session.getToken()
+                if (tokenRaw.isNullOrEmpty()) {
+                    _state.value = _state.value.copy(error = "Sesi tidak valid")
+                    return@launch
+                }
+                val token = "Bearer $tokenRaw"
                 val res = api.updateTransactionStatus(token, UpdateStatusRequest(transactionId, newStatus))
                 if (res.isSuccessful) {
-                    _state.value = _state.value.copy(successMessage = "Status diperbarui ke: $newStatus")
+                    _state.value = _state.value.copy(successMessage = "Status diperbarui ke: ${newStatus.replaceFirstChar { it.uppercase() }}")
                     loadTransactions()
                 } else {
-                    _state.value = _state.value.copy(error = "Gagal memperbarui status")
+                    val msg = when (res.code()) {
+                        404 -> "Transaksi tidak ditemukan"
+                        400 -> "Status tidak valid"
+                        else -> "Gagal memperbarui status (${res.code()})"
+                    }
+                    _state.value = _state.value.copy(error = msg)
                 }
             } catch (e: Exception) {
-                _state.value = _state.value.copy(error = "Error: ${e.message}")
+                _state.value = _state.value.copy(error = "Gagal terhubung ke server")
             }
         }
     }

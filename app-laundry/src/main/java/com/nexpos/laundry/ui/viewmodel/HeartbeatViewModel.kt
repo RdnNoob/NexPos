@@ -22,15 +22,22 @@ class HeartbeatViewModel @Inject constructor(
     private val _isOnline = MutableStateFlow(false)
     val isOnline: StateFlow<Boolean> = _isOnline
 
+    private var heartbeatStarted = false
+
     fun startHeartbeat() {
+        if (heartbeatStarted) return
+        heartbeatStarted = true
         viewModelScope.launch {
             while (isActive) {
                 try {
-                    val token = "Bearer ${session.getToken() ?: ""}"
-                    val deviceId = session.getDeviceId() ?: ""
-                    if (deviceId.isNotEmpty()) {
+                    val tokenRaw = session.getToken()
+                    val deviceId = session.getDeviceId()
+                    if (!tokenRaw.isNullOrEmpty() && !deviceId.isNullOrEmpty()) {
+                        val token = "Bearer $tokenRaw"
                         val res = api.sendHeartbeat(token, HeartbeatRequest(deviceId))
                         _isOnline.value = res.isSuccessful
+                    } else {
+                        _isOnline.value = false
                     }
                 } catch (e: Exception) {
                     _isOnline.value = false
@@ -40,8 +47,9 @@ class HeartbeatViewModel @Inject constructor(
         }
     }
 
-    // FIX: Clear session on logout so device is properly logged out
     fun logout() {
-        viewModelScope.launch { session.clearSession() }
+        viewModelScope.launch {
+            try { session.clearSession() } catch (_: Exception) { }
+        }
     }
 }

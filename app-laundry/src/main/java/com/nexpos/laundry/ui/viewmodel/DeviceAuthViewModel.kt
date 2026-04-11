@@ -29,12 +29,19 @@ class DeviceAuthViewModel @Inject constructor(
     val state: StateFlow<DeviceAuthState> = _state
 
     fun loginWithCode(activationCode: String) {
+        if (activationCode.isBlank()) {
+            _state.value = DeviceAuthState(error = "Kode aktivasi tidak boleh kosong")
+            return
+        }
         viewModelScope.launch {
             _state.value = DeviceAuthState(isLoading = true)
             try {
-                // FIX: Use persistent device ID — same device won't register as new every session
                 val deviceId = session.getOrCreateDeviceId()
-                val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
+                val deviceName = try {
+                    "${Build.MANUFACTURER} ${Build.MODEL}"
+                } catch (_: Exception) {
+                    "Unknown Device"
+                }
                 val response = api.loginDevice(
                     DeviceLoginRequest(
                         activationCode = activationCode.trim().uppercase(),
@@ -52,14 +59,16 @@ class DeviceAuthViewModel @Inject constructor(
                     }
                 } else {
                     val msg = when (response.code()) {
+                        400 -> "Data tidak lengkap"
                         401 -> "Kode aktivasi tidak valid"
                         403 -> "Batas maksimal device tercapai (5 device)"
-                        else -> "Login gagal, coba lagi"
+                        500 -> "Terjadi kesalahan server, coba lagi nanti"
+                        else -> "Login gagal (${response.code()})"
                     }
                     _state.value = DeviceAuthState(error = msg)
                 }
             } catch (e: Exception) {
-                _state.value = DeviceAuthState(error = "Gagal terhubung ke server: ${e.message}")
+                _state.value = DeviceAuthState(error = "Gagal terhubung ke server. Periksa koneksi internet Anda.")
             }
         }
     }

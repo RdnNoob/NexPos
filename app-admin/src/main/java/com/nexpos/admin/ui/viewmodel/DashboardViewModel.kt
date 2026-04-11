@@ -38,15 +38,28 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
-                val token = "Bearer ${session.getToken() ?: ""}"
-                val name = session.userNameFlow.first() ?: ""
-                val outletsRes = api.getOutlets(token)
-                val devicesRes = api.getDevices(token)
-                val txRes = api.getTransactions(token)
+                val tokenRaw = session.getToken()
+                if (tokenRaw.isNullOrEmpty()) {
+                    _state.value = DashboardUiState(error = "Sesi tidak valid, silakan login ulang")
+                    return@launch
+                }
+                val token = "Bearer $tokenRaw"
+                val name = try { session.userNameFlow.first() ?: "" } catch (_: Exception) { "" }
 
-                val outlets = if (outletsRes.isSuccessful) outletsRes.body()?.outlets ?: emptyList() else emptyList()
-                val devices = if (devicesRes.isSuccessful) devicesRes.body()?.devices ?: emptyList() else emptyList()
-                val transactions = if (txRes.isSuccessful) txRes.body()?.transactions ?: emptyList() else emptyList()
+                val outlets = try {
+                    val res = api.getOutlets(token)
+                    if (res.isSuccessful) res.body()?.outlets ?: emptyList() else emptyList()
+                } catch (_: Exception) { emptyList() }
+
+                val devices = try {
+                    val res = api.getDevices(token)
+                    if (res.isSuccessful) res.body()?.devices ?: emptyList() else emptyList()
+                } catch (_: Exception) { emptyList() }
+
+                val transactions = try {
+                    val res = api.getTransactions(token)
+                    if (res.isSuccessful) res.body()?.transactions ?: emptyList() else emptyList()
+                } catch (_: Exception) { emptyList() }
 
                 _state.value = DashboardUiState(
                     isLoading = false,
@@ -56,13 +69,14 @@ class DashboardViewModel @Inject constructor(
                     transactions = transactions
                 )
             } catch (e: Exception) {
-                _state.value = _state.value.copy(isLoading = false, error = "Gagal memuat data: ${e.message}")
+                _state.value = _state.value.copy(isLoading = false, error = "Gagal memuat data. Periksa koneksi internet Anda.")
             }
         }
     }
 
-    // FIX: Clear session on logout so user doesn't stay logged in
     fun logout() {
-        viewModelScope.launch { session.clearSession() }
+        viewModelScope.launch {
+            try { session.clearSession() } catch (_: Exception) { }
+        }
     }
 }

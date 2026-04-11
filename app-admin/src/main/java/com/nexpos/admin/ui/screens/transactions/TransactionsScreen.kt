@@ -54,7 +54,9 @@ fun TransactionsScreen(
         }
     ) { padding ->
         if (state.isLoading) {
-            LoadingScreen("Memuat transaksi...")
+            Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+                LoadingScreen("Memuat transaksi...")
+            }
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
@@ -85,7 +87,19 @@ fun TransactionsScreen(
                     }
                 }
 
-                if (state.transactions.isEmpty()) {
+                state.error?.let { error ->
+                    item {
+                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                            Text(
+                                error,
+                                modifier = Modifier.padding(12.dp),
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                }
+
+                if (state.transactions.isEmpty() && state.error == null) {
                     item {
                         Box(modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {

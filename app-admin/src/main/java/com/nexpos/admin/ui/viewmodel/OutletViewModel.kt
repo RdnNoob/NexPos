@@ -34,36 +34,54 @@ class OutletViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
-                val token = "Bearer ${session.getToken() ?: ""}"
+                val tokenRaw = session.getToken()
+                if (tokenRaw.isNullOrEmpty()) {
+                    _state.value = OutletUiState(error = "Sesi tidak valid")
+                    return@launch
+                }
+                val token = "Bearer $tokenRaw"
                 val res = api.getOutlets(token)
                 if (res.isSuccessful) {
                     _state.value = OutletUiState(outlets = res.body()?.outlets ?: emptyList())
                 } else {
-                    _state.value = OutletUiState(error = "Gagal memuat outlet")
+                    _state.value = OutletUiState(error = "Gagal memuat outlet (${res.code()})")
                 }
             } catch (e: Exception) {
-                _state.value = OutletUiState(error = "Error: ${e.message}")
+                _state.value = OutletUiState(error = "Gagal terhubung ke server")
             }
         }
     }
 
     fun createOutlet(name: String) {
+        if (name.isBlank()) {
+            _state.value = _state.value.copy(error = "Nama outlet tidak boleh kosong")
+            return
+        }
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
-                val token = "Bearer ${session.getToken() ?: ""}"
+                val tokenRaw = session.getToken()
+                if (tokenRaw.isNullOrEmpty()) {
+                    _state.value = _state.value.copy(isLoading = false, error = "Sesi tidak valid")
+                    return@launch
+                }
+                val token = "Bearer $tokenRaw"
                 val res = api.createOutlet(token, CreateOutletRequest(name.trim()))
                 if (res.isSuccessful) {
                     _state.value = _state.value.copy(
                         isLoading = false,
-                        successMessage = "Outlet '${name}' berhasil dibuat!"
+                        successMessage = "Outlet '${name.trim()}' berhasil dibuat!"
                     )
                     loadOutlets()
                 } else {
-                    _state.value = _state.value.copy(isLoading = false, error = "Gagal membuat outlet")
+                    val msg = when (res.code()) {
+                        403 -> "Batas maksimal 5 outlet tercapai"
+                        else -> "Gagal membuat outlet (${res.code()})"
+                    }
+                    _state.value = _state.value.copy(isLoading = false, error = msg)
                 }
             } catch (e: Exception) {
-                _state.value = _state.value.copy(isLoading = false, error = "Error: ${e.message}")
+                _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server")
             }
         }
     }

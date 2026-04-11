@@ -28,6 +28,10 @@ class AuthViewModel @Inject constructor(
     val state: StateFlow<AuthState> = _state
 
     fun login(email: String, password: String) {
+        if (email.isBlank() || password.isBlank()) {
+            _state.value = AuthState(error = "Email dan password tidak boleh kosong")
+            return
+        }
         viewModelScope.launch {
             _state.value = AuthState(isLoading = true)
             try {
@@ -42,15 +46,29 @@ class AuthViewModel @Inject constructor(
                         _state.value = AuthState(error = "Respons server tidak valid")
                     }
                 } else {
-                    _state.value = AuthState(error = "Email atau password salah")
+                    val msg = when (response.code()) {
+                        400 -> "Email dan password wajib diisi"
+                        401 -> "Email atau password salah"
+                        500 -> "Terjadi kesalahan server, coba lagi nanti"
+                        else -> "Login gagal (${response.code()})"
+                    }
+                    _state.value = AuthState(error = msg)
                 }
             } catch (e: Exception) {
-                _state.value = AuthState(error = "Gagal terhubung ke server: ${e.message}")
+                _state.value = AuthState(error = "Gagal terhubung ke server. Periksa koneksi internet Anda.")
             }
         }
     }
 
     fun register(email: String, password: String, name: String) {
+        if (name.isBlank() || email.isBlank() || password.isBlank()) {
+            _state.value = AuthState(error = "Semua field wajib diisi")
+            return
+        }
+        if (password.length < 6) {
+            _state.value = AuthState(error = "Password minimal 6 karakter")
+            return
+        }
         viewModelScope.launch {
             _state.value = AuthState(isLoading = true)
             try {
@@ -65,16 +83,26 @@ class AuthViewModel @Inject constructor(
                         _state.value = AuthState(error = "Respons server tidak valid")
                     }
                 } else {
-                    _state.value = AuthState(error = "Pendaftaran gagal, coba lagi")
+                    val msg = when (response.code()) {
+                        400 -> "Data tidak lengkap"
+                        409 -> "Email sudah terdaftar"
+                        500 -> "Terjadi kesalahan server, coba lagi nanti"
+                        else -> "Pendaftaran gagal (${response.code()})"
+                    }
+                    _state.value = AuthState(error = msg)
                 }
             } catch (e: Exception) {
-                _state.value = AuthState(error = "Gagal terhubung ke server: ${e.message}")
+                _state.value = AuthState(error = "Gagal terhubung ke server. Periksa koneksi internet Anda.")
             }
         }
     }
 
     fun logout() {
-        viewModelScope.launch { session.clearSession() }
+        viewModelScope.launch {
+            try {
+                session.clearSession()
+            } catch (_: Exception) { }
+        }
     }
 
     fun clearError() { _state.value = _state.value.copy(error = null) }

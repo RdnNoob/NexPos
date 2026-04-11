@@ -31,15 +31,6 @@ fun SplashScreen(
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
     var hasNavigated by remember { mutableStateOf(false) }
 
-    // --- Animasi logo: scale spring bounce ---
-    val logoScale by animateFloatAsState(
-        targetValue = 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "logoScale"
-    )
     var logoVisible by remember { mutableStateOf(false) }
     val logoAnim by animateFloatAsState(
         targetValue = if (logoVisible) 1f else 0f,
@@ -50,7 +41,6 @@ fun SplashScreen(
         label = "logoAnim"
     )
 
-    // --- Animasi teks: slide up + fade ---
     var titleVisible by remember { mutableStateOf(false) }
     val titleAlpha by animateFloatAsState(
         targetValue = if (titleVisible) 1f else 0f,
@@ -63,7 +53,6 @@ fun SplashScreen(
         label = "titleOffset"
     )
 
-    // --- Animasi tagline ---
     var taglineVisible by remember { mutableStateOf(false) }
     val taglineAlpha by animateFloatAsState(
         targetValue = if (taglineVisible) 1f else 0f,
@@ -71,7 +60,6 @@ fun SplashScreen(
         label = "taglineAlpha"
     )
 
-    // --- Animasi dots loading ---
     val infiniteTransition = rememberInfiniteTransition(label = "dots")
     val dot1Alpha by infiniteTransition.animateFloat(
         initialValue = 0.2f, targetValue = 1f,
@@ -102,20 +90,13 @@ fun SplashScreen(
         titleVisible = true
         delay(300)
         taglineVisible = true
-        delay(1400)
-        if (!hasNavigated) {
-            hasNavigated = true
-            if (isLoggedIn == true) onNavigateToDashboard() else onNavigateToLogin()
-        }
     }
 
     LaunchedEffect(isLoggedIn) {
-        if (isLoggedIn != null && taglineVisible && !hasNavigated) {
-            delay(600)
-            if (!hasNavigated) {
-                hasNavigated = true
-                if (isLoggedIn == true) onNavigateToDashboard() else onNavigateToLogin()
-            }
+        if (isLoggedIn != null && !hasNavigated) {
+            delay(1200)
+            hasNavigated = true
+            if (isLoggedIn == true) onNavigateToDashboard() else onNavigateToLogin()
         }
     }
 
@@ -126,59 +107,42 @@ fun SplashScreen(
                 Brush.verticalGradient(
                     colors = listOf(
                         Color(0xFF1565C0),
-                        Color(0xFF1976D2),
-                        Color(0xFF1E88E5)
+                        Color(0xFF0D47A1),
+                        Color(0xFF002171)
                     )
                 )
-            ),
-        contentAlignment = Alignment.Center
+            )
     ) {
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Logo icon dengan circle background
-            Box(
+            Surface(
                 modifier = Modifier
+                    .size(100.dp)
                     .scale(logoAnim)
-                    .alpha(logoAnim)
-                    .size(120.dp)
-                    .background(Color.White.copy(alpha = 0.15f), CircleShape),
-                contentAlignment = Alignment.Center
+                    .alpha(logoAnim),
+                shape = CircleShape,
+                color = Color.White.copy(alpha = 0.15f)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(88.dp)
-                        .background(Color.White.copy(alpha = 0.95f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = Icons.Default.Store,
-                        contentDescription = null,
-                        modifier = Modifier.size(52.dp),
-                        tint = Color(0xFF1565C0)
+                        Icons.Default.Store,
+                        contentDescription = "NexPos",
+                        tint = Color.White,
+                        modifier = Modifier.size(52.dp)
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // App Name
             Text(
-                text = "NexPos",
+                text = "NEXPOS",
                 color = Color.White,
-                fontSize = 42.sp,
-                fontWeight = FontWeight.ExtraBold,
-                modifier = Modifier
-                    .alpha(titleAlpha)
-                    .offset(y = titleOffset.dp),
-                letterSpacing = 2.sp
-            )
-            Text(
-                text = "Admin",
-                color = Color.White.copy(alpha = 0.85f),
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Medium,
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Bold,
                 modifier = Modifier
                     .alpha(titleAlpha)
                     .offset(y = titleOffset.dp),
@@ -187,7 +151,6 @@ fun SplashScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Tagline
             Text(
                 text = "Manajemen Outlet Laundry\nSerba Digital",
                 color = Color.White.copy(alpha = 0.7f),
@@ -199,7 +162,6 @@ fun SplashScreen(
 
             Spacer(modifier = Modifier.height(80.dp))
 
-            // Loading dots
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.alpha(taglineAlpha)
@@ -216,7 +178,6 @@ fun SplashScreen(
             }
         }
 
-        // Version text at bottom
         Box(
             modifier = Modifier
                 .fillMaxSize()

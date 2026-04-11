@@ -32,7 +32,12 @@ class TransactionViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
-                val token = "Bearer ${session.getToken() ?: ""}"
+                val tokenRaw = session.getToken()
+                if (tokenRaw.isNullOrEmpty()) {
+                    _state.value = TransactionUiState(error = "Sesi tidak valid")
+                    return@launch
+                }
+                val token = "Bearer $tokenRaw"
                 val res = api.getTransactions(token, outletId)
                 if (res.isSuccessful) {
                     val txList = res.body()?.transactions ?: emptyList()
@@ -43,10 +48,10 @@ class TransactionViewModel @Inject constructor(
                         totalTransactions = txList.size
                     )
                 } else {
-                    _state.value = TransactionUiState(error = "Gagal memuat transaksi")
+                    _state.value = TransactionUiState(error = "Gagal memuat transaksi (${res.code()})")
                 }
             } catch (e: Exception) {
-                _state.value = TransactionUiState(error = "Error: ${e.message}")
+                _state.value = TransactionUiState(error = "Gagal terhubung ke server")
             }
         }
     }

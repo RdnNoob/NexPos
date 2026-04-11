@@ -10,50 +10,48 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Prom
   const { outletId } = req.query;
 
   try {
-    let query: string;
-    let params: (number | undefined)[];
-
+    let result;
     if (outletId) {
-      query = `
-        SELECT t.*, o.name as outlet_name 
-        FROM transactions t 
-        LEFT JOIN outlets o ON t.outlet_id = o.id 
-        WHERE t.outlet_id = $1 AND o.owner_id = $2
-        ORDER BY t.created_at DESC
-      `;
-      params = [parseInt(outletId as string), req.userId];
+      result = await pool.query(
+        `SELECT t.*, o.name as outlet_name
+         FROM transactions t
+         LEFT JOIN outlets o ON t.outlet_id = o.id
+         WHERE t.outlet_id = $1
+         ORDER BY t.created_at DESC`,
+        [outletId]
+      );
     } else if (req.outletId) {
-      // FIX: Kasir device — hanya tampilkan transaksi outlet yang sedang aktif
-      query = `
-        SELECT t.*, o.name as outlet_name 
-        FROM transactions t 
-        LEFT JOIN outlets o ON t.outlet_id = o.id 
-        WHERE t.outlet_id = $1
-        ORDER BY t.created_at DESC
-      `;
-      params = [req.outletId];
+      // Kasir: hanya lihat transaksi outlet sendiri
+      result = await pool.query(
+        `SELECT t.*, o.name as outlet_name
+         FROM transactions t
+         LEFT JOIN outlets o ON t.outlet_id = o.id
+         WHERE t.outlet_id = $1
+         ORDER BY t.created_at DESC`,
+        [req.outletId]
+      );
     } else {
-      query = `
-        SELECT t.*, o.name as outlet_name 
-        FROM transactions t 
-        LEFT JOIN outlets o ON t.outlet_id = o.id 
-        WHERE o.owner_id = $1
-        ORDER BY t.created_at DESC
-      `;
-      params = [req.userId];
+      // Admin: lihat semua transaksi miliknya
+      result = await pool.query(
+        `SELECT t.*, o.name as outlet_name
+         FROM transactions t
+         LEFT JOIN outlets o ON t.outlet_id = o.id
+         WHERE o.owner_id = $1
+         ORDER BY t.created_at DESC`,
+        [req.userId]
+      );
     }
 
-    const result = await pool.query(query, params);
     res.json({
-      transactions: result.rows.map(t => ({
+      transactions: result.rows.map((t) => ({
         id: t.id,
         outletId: t.outlet_id,
-        outletName: t.outlet_name,
         customer: t.customer,
         service: t.service,
         amount: parseFloat(t.amount),
         status: t.status,
         createdAt: t.created_at,
+        outletName: t.outlet_name ?? null,
       })),
     });
   } catch (err) {
@@ -63,34 +61,39 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Prom
 });
 
 router.post("/", authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
-  const { customer, service, amount, outletId } = req.body;
+  const { customer, service, amount } = req.body;
 
-  if (!customer || !service || !amount) {
+  if (!customer || !service || amount === undefined || amount === null) {
     res.status(400).json({ message: "Customer, layanan, dan harga wajib diisi" });
     return;
   }
 
-  try {
-    // FIX: Prioritaskan outlet dari JWT token (kasir device), lalu dari body, lalu fallback
-    let targetOutletId = outletId || req.outletId;
-    if (!targetOutletId) {
-      const outletResult = await pool.query(
-        "SELECT id FROM outlets WHERE owner_id = $1 LIMIT 1",
-        [req.userId]
-      );
-      if (outletResult.rows.length === 0) {
-        res.status(400).json({ message: "Outlet tidak ditemukan" });
-        return;
-      }
-      targetOutletId = outletResult.rows[0].id;
-    }
+  const amountNum = parseFloat(amount);
+  if (isNaN(amountNum) || amountNum <= 0) {
+    res.status(400).json({ message: "Harga tidak valid" });
+    return;
+  }
 
+  const outletId = req.outletId;
+  if (!outletId) {
+    res.status(403).json({ message: "Hanya kasir yang bisa membuat transaksi" });
+    return;
+  }
+
+  try {
     const result = await pool.query(
-      `INSERT INTO transactions (outlet_id, customer, service, amount, status) 
-       VALUES ($1, $2, $3, $4, 'diterima') RETURNING *`,
-      [targetOutletId, customer, service, parseFloat(amount)]
+      `INSERT INTO transactions (outlet_id, customer, service, amount, status)
+       VALUES ($1, $2, $3, $4, 'diterima')
+       RETURNING *`,
+      [outletId, customer.trim(), service.trim(), amountNum]
     );
     const t = result.rows[0];
+
+    const outletResult = await pool.query(
+      "SELECT name FROM outlets WHERE id = $1",
+      [outletId]
+    );
+    const outletName = outletResult.rows[0]?.name ?? null;
 
     res.status(201).json({
       id: t.id,
@@ -100,6 +103,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response): Pro
       amount: parseFloat(t.amount),
       status: t.status,
       createdAt: t.created_at,
+      outletName,
     });
   } catch (err) {
     console.error(err);
@@ -127,14 +131,14 @@ router.put("/status", authenticateToken, async (req: AuthRequest, res: Response)
       `UPDATE transactions t SET status = $1, updated_at = NOW()
        FROM outlets o
        WHERE t.id = $2
-       AND t.outlet_id = o.id
-       AND (o.owner_id = $3 OR t.outlet_id = $4)
-       RETURNING t.*`,
+         AND t.outlet_id = o.id
+         AND (o.owner_id = $3 OR t.outlet_id = $4)
+       RETURNING t.*, o.name as outlet_name`,
       [status.toLowerCase(), transactionId, req.userId, req.outletId ?? null]
     );
 
     if (result.rows.length === 0) {
-      res.status(404).json({ message: "Transaksi tidak ditemukan" });
+      res.status(404).json({ message: "Transaksi tidak ditemukan atau akses ditolak" });
       return;
     }
 
@@ -147,6 +151,7 @@ router.put("/status", authenticateToken, async (req: AuthRequest, res: Response)
       amount: parseFloat(t.amount),
       status: t.status,
       createdAt: t.created_at,
+      outletName: t.outlet_name ?? null,
     });
   } catch (err) {
     console.error(err);
