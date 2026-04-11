@@ -45,7 +45,7 @@ fun TransactionListScreen(
             text = {
                 Column {
                     Text("Pelanggan: ${tx.customer}", fontWeight = FontWeight.Bold)
-                    Text("Layanan: ${tx.service}")
+                    Text("Layanan: ${tx.service ?: "-"}")
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("Status saat ini:")
                     Spacer(modifier = Modifier.height(4.dp))

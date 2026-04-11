@@ -10,13 +10,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.nexpos.core.data.local.SessionManager
 import com.nexpos.laundry.ui.viewmodel.HeartbeatViewModel
 import com.nexpos.laundry.ui.viewmodel.LaundryTransactionViewModel
-import dagger.hilt.android.EntryPointAccessors
-import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,9 +24,6 @@ fun HomeScreen(
 ) {
     val isOnline by heartbeatViewModel.isOnline.collectAsState()
     val txState by txViewModel.state.collectAsState()
-    val outletName = remember { mutableStateOf("") }
-    val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -46,11 +38,7 @@ fun HomeScreen(
             text = { Text("Yakin ingin keluar dari outlet ini?") },
             confirmButton = {
                 Button(
-                    onClick = {
-                        coroutineScope.launch {
-                            onLogout()
-                        }
-                    },
+                    onClick = { onLogout() },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) { Text("Keluar") }
             },

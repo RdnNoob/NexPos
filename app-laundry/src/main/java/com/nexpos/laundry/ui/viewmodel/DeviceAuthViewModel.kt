@@ -43,9 +43,13 @@ class DeviceAuthViewModel @Inject constructor(
                     )
                 )
                 if (response.isSuccessful) {
-                    val body = response.body()!!
-                    session.saveDeviceSession(body.token, body.outlet, body.device, deviceId)
-                    _state.value = DeviceAuthState(isSuccess = true, outletName = body.outlet?.name ?: "")
+                    val body = response.body()
+                    if (body != null) {
+                        session.saveDeviceSession(body.token, body.outlet, body.device, deviceId)
+                        _state.value = DeviceAuthState(isSuccess = true, outletName = body.outlet?.name ?: "")
+                    } else {
+                        _state.value = DeviceAuthState(error = "Respons server tidak valid")
+                    }
                 } else {
                     val msg = when (response.code()) {
                         401 -> "Kode aktivasi tidak valid"

@@ -33,9 +33,14 @@ class AuthViewModel @Inject constructor(
             try {
                 val response = api.login(LoginRequest(email.trim(), password))
                 if (response.isSuccessful) {
-                    val body = response.body()!!
-                    session.saveAdminSession(body.token, body.user!!)
-                    _state.value = AuthState(isSuccess = true)
+                    val body = response.body()
+                    val user = body?.user
+                    if (body != null && user != null) {
+                        session.saveAdminSession(body.token, user)
+                        _state.value = AuthState(isSuccess = true)
+                    } else {
+                        _state.value = AuthState(error = "Respons server tidak valid")
+                    }
                 } else {
                     _state.value = AuthState(error = "Email atau password salah")
                 }
@@ -51,9 +56,14 @@ class AuthViewModel @Inject constructor(
             try {
                 val response = api.register(RegisterRequest(email.trim(), password, name.trim()))
                 if (response.isSuccessful) {
-                    val body = response.body()!!
-                    session.saveAdminSession(body.token, body.user!!)
-                    _state.value = AuthState(isSuccess = true)
+                    val body = response.body()
+                    val user = body?.user
+                    if (body != null && user != null) {
+                        session.saveAdminSession(body.token, user)
+                        _state.value = AuthState(isSuccess = true)
+                    } else {
+                        _state.value = AuthState(error = "Respons server tidak valid")
+                    }
                 } else {
                     _state.value = AuthState(error = "Pendaftaran gagal, coba lagi")
                 }
