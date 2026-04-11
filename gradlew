@@ -43,7 +43,7 @@ APP_HOME=$( cd "${APP_HOME:-./}" && pwd -P ) || exit
 APP_NAME="Gradle"
 APP_BASE_NAME=${0##*/}
 
-DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
+DEFAULT_JVM_OPTS="-Xmx64m -Xms64m"
 
 # Use the maximum available, or set MAX_FD != -1 to use that value.
 MAX_FD=maximum
@@ -92,10 +92,8 @@ else
     which java >/dev/null 2>&1 || die "ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH."
 fi
 
-exec "$JAVACMD" \
-  "${DEFAULT_JVM_OPTS}" \
-  "${JAVA_OPTS}" \
-  "${GRADLE_OPTS}" \
+# shellcheck disable=SC2086
+exec "$JAVACMD" $DEFAULT_JVM_OPTS ${JAVA_OPTS:+"$JAVA_OPTS"} ${GRADLE_OPTS:+"$GRADLE_OPTS"} \
   "-Dorg.gradle.appname=$APP_BASE_NAME" \
   -classpath "$CLASSPATH" \
   org.gradle.wrapper.GradleWrapperMain \
