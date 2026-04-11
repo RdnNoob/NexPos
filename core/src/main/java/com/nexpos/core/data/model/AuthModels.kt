@@ -43,5 +43,6 @@ data class DeviceInfo(
     val deviceId: String,
     val status: String,
     val outletId: Int,
-    val lastSeen: String? = null
+    val lastSeen: String? = null,
+    val outletName: String? = null
 )
