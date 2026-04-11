@@ -37,9 +37,9 @@ class DashboardViewModel @Inject constructor(
     fun loadDashboard() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
-            val token = "Bearer ${session.getToken() ?: ""}"
-            val name = session.userNameFlow.first() ?: ""
             try {
+                val token = "Bearer ${session.getToken() ?: ""}"
+                val name = session.userNameFlow.first() ?: ""
                 val outletsRes = api.getOutlets(token)
                 val devicesRes = api.getDevices(token)
                 val txRes = api.getTransactions(token)
