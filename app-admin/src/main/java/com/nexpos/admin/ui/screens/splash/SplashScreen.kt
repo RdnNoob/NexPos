@@ -3,7 +3,9 @@ package com.nexpos.admin.ui.screens.splash
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material3.*
@@ -14,6 +16,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -29,6 +32,7 @@ fun SplashScreen(
     viewModel: SplashViewModel = hiltViewModel()
 ) {
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    val lastCrash by viewModel.lastCrash.collectAsState()
     var hasNavigated by remember { mutableStateOf(false) }
 
     var logoVisible by remember { mutableStateOf(false) }
@@ -93,11 +97,51 @@ fun SplashScreen(
     }
 
     LaunchedEffect(isLoggedIn) {
-        if (isLoggedIn != null && !hasNavigated) {
+        if (isLoggedIn != null && !hasNavigated && lastCrash == null) {
             delay(1200)
             hasNavigated = true
             if (isLoggedIn == true) onNavigateToDashboard() else onNavigateToLogin()
         }
+    }
+
+    if (lastCrash != null) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("⚠ Crash Terdeteksi", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text(
+                        "App baru saja crash. Info ini untuk diagnosa:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .heightIn(max = 300.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        Text(
+                            text = lastCrash ?: "",
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.clearCrash()
+                    if (!hasNavigated) {
+                        hasNavigated = true
+                        if (isLoggedIn == true) onNavigateToDashboard() else onNavigateToLogin()
+                    }
+                }) {
+                    Text("OK, Lanjutkan")
+                }
+            }
+        )
     }
 
     Box(
