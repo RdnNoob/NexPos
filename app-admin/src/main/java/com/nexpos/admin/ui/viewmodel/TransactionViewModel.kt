@@ -6,9 +6,11 @@ import com.nexpos.core.data.api.NexPosApi
 import com.nexpos.core.data.local.SessionManager
 import com.nexpos.core.data.model.TransactionInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.io.IOException
 import javax.inject.Inject
 
 data class TransactionUiState(
@@ -50,8 +52,13 @@ class TransactionViewModel @Inject constructor(
                 } else {
                     _state.value = TransactionUiState(error = "Gagal memuat transaksi (${res.code()})")
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IOException) {
+                _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server. Periksa koneksi internet.")
             } catch (e: Exception) {
-                _state.value = TransactionUiState(error = "Gagal terhubung ke server")
+                val detail = e.message?.take(120) ?: e.javaClass.simpleName
+                _state.value = _state.value.copy(isLoading = false, error = "Gagal memuat transaksi: $detail")
             }
         }
     }

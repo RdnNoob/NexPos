@@ -18,6 +18,7 @@
     public <methods>;
 }
 -keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation
+-keep class kotlin.** { *; }
 
 # ============= Coroutines =============
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
@@ -25,6 +26,7 @@
 -keepclassmembers class kotlinx.coroutines.** {
     volatile <fields>;
 }
+-keep class kotlinx.coroutines.** { *; }
 -dontwarn kotlinx.coroutines.**
 
 # ============= Retrofit =============
@@ -35,6 +37,7 @@
 -keepattributes RuntimeVisibleAnnotations
 -keepattributes RuntimeVisibleParameterAnnotations
 -keepattributes AnnotationDefault
+-keepattributes Exceptions
 
 -dontwarn javax.annotation.**
 -dontwarn kotlin.Unit
@@ -59,6 +62,7 @@
 -dontwarn okio.**
 -keep class okhttp3.** { *; }
 -keep interface okhttp3.** { *; }
+-keep class okio.** { *; }
 
 # ============= Gson =============
 -keep class com.google.gson.** { *; }
@@ -103,6 +107,7 @@
 -keep class **_HiltComponents$* { *; }
 -keep class dagger.hilt.android.internal.** { *; }
 -keep class hilt_aggregated_deps.** { *; }
+-keep class dagger.hilt.** { *; }
 
 # Pertahankan semua class @Inject constructor
 -keepclasseswithmembers class * {
@@ -115,3 +120,9 @@
 
 # ============= Compose =============
 -dontwarn androidx.compose.**
+-keep class androidx.compose.** { *; }
+
+# ============= AndroidX / Lifecycle =============
+-keep class androidx.lifecycle.** { *; }
+-keep class androidx.navigation.** { *; }
+-dontwarn androidx.**

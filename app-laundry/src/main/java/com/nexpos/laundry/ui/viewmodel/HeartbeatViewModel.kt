@@ -6,6 +6,7 @@ import com.nexpos.core.data.api.NexPosApi
 import com.nexpos.core.data.local.SessionManager
 import com.nexpos.core.data.model.HeartbeatRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -39,6 +40,8 @@ class HeartbeatViewModel @Inject constructor(
                     } else {
                         _isOnline.value = false
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     _isOnline.value = false
                 }

@@ -8,9 +8,11 @@ import com.nexpos.core.data.model.CreateTransactionRequest
 import com.nexpos.core.data.model.TransactionInfo
 import com.nexpos.core.data.model.UpdateStatusRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.io.IOException
 import javax.inject.Inject
 
 data class LaundryTxState(
@@ -46,8 +48,13 @@ class LaundryTransactionViewModel @Inject constructor(
                 } else {
                     _state.value = LaundryTxState(error = "Gagal memuat transaksi (${res.code()})")
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IOException) {
+                _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server. Periksa koneksi internet.")
             } catch (e: Exception) {
-                _state.value = LaundryTxState(error = "Gagal terhubung ke server. Periksa koneksi internet.")
+                val detail = e.message?.take(120) ?: e.javaClass.simpleName
+                _state.value = _state.value.copy(isLoading = false, error = "Gagal memuat: $detail")
             }
         }
     }
@@ -88,8 +95,13 @@ class LaundryTransactionViewModel @Inject constructor(
                     }
                     _state.value = _state.value.copy(isLoading = false, error = msg)
                 }
-            } catch (e: Exception) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IOException) {
                 _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server")
+            } catch (e: Exception) {
+                val detail = e.message?.take(120) ?: e.javaClass.simpleName
+                _state.value = _state.value.copy(isLoading = false, error = "Gagal membuat transaksi: $detail")
             }
         }
     }
@@ -116,8 +128,13 @@ class LaundryTransactionViewModel @Inject constructor(
                     }
                     _state.value = _state.value.copy(error = msg)
                 }
-            } catch (e: Exception) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IOException) {
                 _state.value = _state.value.copy(error = "Gagal terhubung ke server")
+            } catch (e: Exception) {
+                val detail = e.message?.take(120) ?: e.javaClass.simpleName
+                _state.value = _state.value.copy(error = "Gagal update status: $detail")
             }
         }
     }

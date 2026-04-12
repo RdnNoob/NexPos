@@ -7,9 +7,11 @@ import com.nexpos.core.data.local.SessionManager
 import com.nexpos.core.data.model.CreateOutletRequest
 import com.nexpos.core.data.model.OutletInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.io.IOException
 import javax.inject.Inject
 
 data class OutletUiState(
@@ -46,8 +48,13 @@ class OutletViewModel @Inject constructor(
                 } else {
                     _state.value = OutletUiState(error = "Gagal memuat outlet (${res.code()})")
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IOException) {
+                _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server. Periksa koneksi internet.")
             } catch (e: Exception) {
-                _state.value = OutletUiState(error = "Gagal terhubung ke server")
+                val detail = e.message?.take(120) ?: e.javaClass.simpleName
+                _state.value = _state.value.copy(isLoading = false, error = "Gagal memuat outlet: $detail")
             }
         }
     }
@@ -80,8 +87,13 @@ class OutletViewModel @Inject constructor(
                     }
                     _state.value = _state.value.copy(isLoading = false, error = msg)
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IOException) {
+                _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server. Periksa koneksi internet.")
             } catch (e: Exception) {
-                _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server")
+                val detail = e.message?.take(120) ?: e.javaClass.simpleName
+                _state.value = _state.value.copy(isLoading = false, error = "Gagal membuat outlet: $detail")
             }
         }
     }

@@ -7,6 +7,7 @@ import com.nexpos.core.data.api.NexPosApi
 import com.nexpos.core.data.local.SessionManager
 import com.nexpos.core.data.model.DeviceLoginRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -68,10 +69,13 @@ class DeviceAuthViewModel @Inject constructor(
                     }
                     _state.value = DeviceAuthState(error = msg)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: IOException) {
                 _state.value = DeviceAuthState(error = "Tidak bisa menjangkau server NexPos. Pastikan koneksi internet aktif lalu coba lagi.")
             } catch (e: Exception) {
-                _state.value = DeviceAuthState(error = "Respons server tidak dapat diproses. Coba lagi beberapa saat lagi.")
+                val detail = e.message?.take(120) ?: e.javaClass.simpleName
+                _state.value = DeviceAuthState(error = "Login gagal: $detail")
             }
         }
     }

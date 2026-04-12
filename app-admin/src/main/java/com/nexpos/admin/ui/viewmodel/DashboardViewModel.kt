@@ -8,10 +8,12 @@ import com.nexpos.core.data.model.DeviceInfo
 import com.nexpos.core.data.model.OutletInfo
 import com.nexpos.core.data.model.TransactionInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.io.IOException
 import javax.inject.Inject
 
 data class DashboardUiState(
@@ -68,8 +70,13 @@ class DashboardViewModel @Inject constructor(
                     devices = devices,
                     transactions = transactions
                 )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IOException) {
+                _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server. Periksa koneksi internet Anda.")
             } catch (e: Exception) {
-                _state.value = _state.value.copy(isLoading = false, error = "Gagal memuat data. Periksa koneksi internet Anda.")
+                val detail = e.message?.take(120) ?: e.javaClass.simpleName
+                _state.value = _state.value.copy(isLoading = false, error = "Gagal memuat data: $detail")
             }
         }
     }
