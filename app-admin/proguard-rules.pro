@@ -1,3 +1,10 @@
+# ============= DISABLE OPTIMIZATION =============
+# proguard-android-optimize.txt melakukan class merging & method inlining
+# yang merusak Hilt/Dagger meski ada keep rules. Matikan sepenuhnya.
+-dontoptimize
+-dontusemixedcaseclassnames
+-dontskipnonpubliclibraryclasses
+
 # ============= NUCLEAR: Pertahankan SEMUA kelas NexPos =============
 # Ini mencegah R8 memotong kelas apapun milik kita, termasuk Hilt generated
 -keep class com.nexpos.** { *; }
