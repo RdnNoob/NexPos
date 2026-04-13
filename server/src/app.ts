@@ -4,7 +4,6 @@ import authRouter from "./routes/auth";
 import outletsRouter from "./routes/outlets";
 import devicesRouter from "./routes/devices";
 import transactionsRouter from "./routes/transactions";
-import passwordResetRouter from "./routes/password-reset";
 
 const app = express();
 
@@ -17,7 +16,6 @@ app.get("/api/healthz", (_req, res) => {
 });
 
 app.use("/api/auth", authRouter);
-app.use("/api/auth", passwordResetRouter);
 app.use("/api/outlets", outletsRouter);
 app.use("/api/devices", devicesRouter);
 app.use("/api/transactions", transactionsRouter);
