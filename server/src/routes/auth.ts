@@ -95,7 +95,7 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
   }
 
   try {
-    await ensureRuntimeSchema();
+    await initDb();
     const outletResult = await pool.query(
       "SELECT * FROM outlets WHERE activation_code = $1",
       [activationCode]
@@ -234,9 +234,21 @@ router.post("/forgot-password", async (req: Request, res: Response): Promise<voi
     await sendOtpEmail(user.email, otp, user.name);
 
     res.json({ message: "Jika email terdaftar, kode OTP telah dikirim" });
-  } catch (err) {
+  } catch (err: any) {
     console.error("[forgot-password]", err);
-    res.status(500).json({ message: "Gagal mengirim email OTP. Pastikan konfigurasi email server sudah benar." });
+    const isConfigError =
+      err?.message?.includes("Konfigurasi email server") ||
+      err?.message?.includes("GMAIL_USER") ||
+      err?.message?.includes("GMAIL_APP_PASSWORD");
+    if (isConfigError) {
+      res.status(500).json({
+        message: "Konfigurasi email server belum diatur. Hubungi administrator untuk mengatur GMAIL_USER dan GMAIL_APP_PASSWORD.",
+      });
+    } else {
+      res.status(500).json({
+        message: "Gagal mengirim email OTP. Pastikan konfigurasi email server sudah benar.",
+      });
+    }
   }
 });
 

@@ -4,7 +4,7 @@ function createTransporter() {
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
   if (!user || !pass) {
-    throw new Error("GMAIL_USER atau GMAIL_APP_PASSWORD belum dikonfigurasi");
+    return null;
   }
   return nodemailer.createTransport({
     service: "gmail",
@@ -14,6 +14,15 @@ function createTransporter() {
 
 export async function sendOtpEmail(to: string, otp: string, name: string): Promise<void> {
   const transporter = createTransporter();
+
+  if (!transporter) {
+    console.warn(
+      "[Email] GMAIL_USER atau GMAIL_APP_PASSWORD belum dikonfigurasi di environment variable."
+    );
+    console.info(`[Email] OTP untuk ${to} (${name}): ${otp}`);
+    throw new Error("Konfigurasi email server belum lengkap. Hubungi administrator.");
+  }
+
   await transporter.sendMail({
     from: `"NexPos Admin" <${process.env.GMAIL_USER}>`,
     to,

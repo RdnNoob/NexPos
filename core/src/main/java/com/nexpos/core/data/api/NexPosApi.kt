@@ -39,6 +39,12 @@ interface NexPosApi {
         @Body request: CreateOutletRequest
     ): Response<OutletResponse>
 
+    @DELETE("/api/outlets/{id}")
+    suspend fun deleteOutlet(
+        @Header("Authorization") token: String,
+        @Path("id") outletId: Int
+    ): Response<MessageResponse>
+
     @GET("/api/devices")
     suspend fun getDevices(@Header("Authorization") token: String): Response<DeviceListResponse>
 

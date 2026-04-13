@@ -9,10 +9,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nexpos.admin.ui.viewmodel.OutletViewModel
+import com.nexpos.core.data.model.OutletInfo
 import com.nexpos.core.ui.components.LoadingScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -25,6 +28,9 @@ fun OutletsScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val clipboardManager = LocalClipboardManager.current
+
+    var outletToDelete by remember { mutableStateOf<OutletInfo?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.loadOutlets()
@@ -42,6 +48,37 @@ fun OutletsScreen(
             snackbarHostState.showSnackbar(state.error!!)
             viewModel.clearMessage()
         }
+    }
+
+    if (outletToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { outletToDelete = null },
+            icon = { Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error) },
+            title = { Text("Hapus Outlet") },
+            text = {
+                Text(
+                    "Apakah Anda yakin ingin menghapus outlet \"${outletToDelete!!.name}\"? " +
+                    "Semua transaksi dan perangkat yang terhubung ke outlet ini juga akan diputus."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val o = outletToDelete!!
+                        outletToDelete = null
+                        viewModel.deleteOutlet(o.id, o.name)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Hapus")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { outletToDelete = null }) {
+                    Text("Batal")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -75,12 +112,12 @@ fun OutletsScreen(
         }
     ) { padding ->
         when {
-            state.isLoading -> {
+            state.isLoading && state.deletingOutletId == null -> {
                 Box(modifier = Modifier.fillMaxSize().padding(padding)) {
                     LoadingScreen("Memuat outlet...")
                 }
             }
-            state.outlets.isEmpty() -> {
+            state.outlets.isEmpty() && !state.isLoading -> {
                 Box(
                     modifier = Modifier.fillMaxSize().padding(padding),
                     contentAlignment = Alignment.Center
@@ -122,7 +159,8 @@ fun OutletsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    items(state.outlets) { outlet ->
+                    items(state.outlets, key = { it.id }) { outlet ->
+                        val isDeleting = state.deletingOutletId == outlet.id
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -132,7 +170,26 @@ fun OutletsScreen(
                                         tint = MaterialTheme.colorScheme.primary
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
-                                    Text(outlet.name, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        outlet.name,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    if (isDeleting) {
+                                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                    } else {
+                                        IconButton(
+                                            onClick = { outletToDelete = outlet },
+                                            modifier = Modifier.size(36.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = "Hapus Outlet",
+                                                tint = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
                                 }
                                 Spacer(modifier = Modifier.height(12.dp))
                                 if (!outlet.activationCode.isNullOrBlank()) {
@@ -141,7 +198,9 @@ fun OutletsScreen(
                                         color = MaterialTheme.colorScheme.primaryContainer
                                     ) {
                                         Row(
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 10.dp, vertical = 6.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Icon(
@@ -155,8 +214,22 @@ fun OutletsScreen(
                                                 "Kode: ${outlet.activationCode}",
                                                 style = MaterialTheme.typography.labelMedium,
                                                 fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                modifier = Modifier.weight(1f)
                                             )
+                                            IconButton(
+                                                onClick = {
+                                                    clipboardManager.setText(AnnotatedString(outlet.activationCode))
+                                                },
+                                                modifier = Modifier.size(28.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.ContentCopy,
+                                                    contentDescription = "Salin Kode Outlet",
+                                                    modifier = Modifier.size(16.dp),
+                                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                                )
+                                            }
                                         }
                                     }
                                 }

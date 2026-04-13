@@ -18,7 +18,8 @@ data class OutletUiState(
     val isLoading: Boolean = false,
     val outlets: List<OutletInfo> = emptyList(),
     val error: String? = null,
-    val successMessage: String? = null
+    val successMessage: String? = null,
+    val deletingOutletId: Int? = null
 )
 
 @HiltViewModel
@@ -94,6 +95,41 @@ class OutletViewModel @Inject constructor(
             } catch (e: Exception) {
                 val detail = e.message?.take(120) ?: e.javaClass.simpleName
                 _state.value = _state.value.copy(isLoading = false, error = "Gagal membuat outlet: $detail")
+            }
+        }
+    }
+
+    fun deleteOutlet(outletId: Int, outletName: String) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(deletingOutletId = outletId, error = null)
+            try {
+                val tokenRaw = session.getToken()
+                if (tokenRaw.isNullOrEmpty()) {
+                    _state.value = _state.value.copy(deletingOutletId = null, error = "Sesi tidak valid")
+                    return@launch
+                }
+                val token = "Bearer $tokenRaw"
+                val res = api.deleteOutlet(token, outletId)
+                if (res.isSuccessful) {
+                    _state.value = _state.value.copy(
+                        deletingOutletId = null,
+                        successMessage = "Outlet '$outletName' berhasil dihapus"
+                    )
+                    loadOutlets()
+                } else {
+                    val msg = when (res.code()) {
+                        404 -> "Outlet tidak ditemukan"
+                        else -> "Gagal menghapus outlet (${res.code()})"
+                    }
+                    _state.value = _state.value.copy(deletingOutletId = null, error = msg)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IOException) {
+                _state.value = _state.value.copy(deletingOutletId = null, error = "Gagal terhubung ke server. Periksa koneksi internet.")
+            } catch (e: Exception) {
+                val detail = e.message?.take(120) ?: e.javaClass.simpleName
+                _state.value = _state.value.copy(deletingOutletId = null, error = "Gagal menghapus outlet: $detail")
             }
         }
     }

@@ -74,4 +74,43 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response): Pro
   }
 });
 
+router.delete("/:id", authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
+  const outletId = parseInt(req.params.id, 10);
+  if (!outletId || isNaN(outletId)) {
+    res.status(400).json({ message: "ID outlet tidak valid" });
+    return;
+  }
+
+  try {
+    await ensureRuntimeSchema();
+    const existing = await pool.query(
+      "SELECT id FROM outlets WHERE id = $1 AND owner_id::text = $2::text",
+      [outletId, String(req.userId)]
+    );
+    if (existing.rows.length === 0) {
+      res.status(404).json({ message: "Outlet tidak ditemukan atau bukan milik Anda" });
+      return;
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("DELETE FROM transactions WHERE outlet_id = $1", [outletId]);
+      await client.query("UPDATE devices SET outlet_id = NULL, status = 'offline', refresh_token = NULL WHERE outlet_id = $1", [outletId]);
+      await client.query("DELETE FROM outlets WHERE id = $1", [outletId]);
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    res.json({ message: "Outlet berhasil dihapus" });
+  } catch (err) {
+    console.error("[Outlets DELETE]", err);
+    res.status(500).json({ message: "Terjadi kesalahan server" });
+  }
+});
+
 export default router;
