@@ -28,9 +28,18 @@ fun RegisterScreen(
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var hasNavigated by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.isSuccess) {
-        if (state.isSuccess) onRegisterSuccess()
+        if (state.isSuccess && !hasNavigated) {
+            hasNavigated = true
+            try {
+                onRegisterSuccess()
+            } catch (e: Exception) {
+                hasNavigated = false
+                viewModel.clearError()
+            }
+        }
     }
 
     Column(
@@ -98,7 +107,9 @@ fun RegisterScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Sudah punya akun?", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            TextButton(onClick = onNavigateToLogin) { Text("Masuk") }
+            TextButton(onClick = {
+                try { onNavigateToLogin() } catch (_: Exception) { }
+            }) { Text("Masuk") }
         }
     }
 }
