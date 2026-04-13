@@ -24,16 +24,28 @@ fun OutletsScreen(
     viewModel: OutletViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         viewModel.loadOutlets()
     }
 
     LaunchedEffect(state.successMessage) {
-        if (state.successMessage != null) viewModel.clearMessage()
+        if (state.successMessage != null) {
+            snackbarHostState.showSnackbar(state.successMessage!!)
+            viewModel.clearMessage()
+        }
+    }
+
+    LaunchedEffect(state.error) {
+        if (state.error != null) {
+            snackbarHostState.showSnackbar(state.error!!)
+            viewModel.clearMessage()
+        }
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Manajemen Outlet") },
@@ -55,78 +67,108 @@ fun OutletsScreen(
             )
         },
         floatingActionButton = {
-            if ((state.outlets.size) < 5) {
+            if (state.outlets.size < 5) {
                 FloatingActionButton(onClick = onNavigateToCreate) {
                     Icon(Icons.Default.Add, "Tambah Outlet")
                 }
             }
         }
     ) { padding ->
-        if (state.isLoading) {
-            Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-                LoadingScreen("Memuat outlet...")
-            }
-        } else if (state.outlets.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.Store, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Belum ada outlet", style = MaterialTheme.typography.bodyLarge)
-                    Text("Tambahkan outlet pertamamu", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        when {
+            state.isLoading -> {
+                Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+                    LoadingScreen("Memuat outlet...")
                 }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                item {
-                    Text(
-                        "${state.outlets.size}/5 outlet",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            state.outlets.isEmpty() -> {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.Store,
+                            null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Belum ada outlet", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "Tambahkan outlet pertamamu",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedButton(onClick = { viewModel.loadOutlets() }) {
+                            Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Coba Lagi")
+                        }
+                    }
                 }
-                items(state.outlets) { outlet ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Store, null, tint = MaterialTheme.colorScheme.primary)
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
+            }
+            else -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    item {
+                        Text(
+                            "${state.outlets.size}/5 outlet",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    items(state.outlets) { outlet ->
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.Store,
+                                        null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
                                     Text(outlet.name, fontWeight = FontWeight.Bold)
                                 }
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Surface(
-                                    shape = MaterialTheme.shapes.small,
-                                    color = MaterialTheme.colorScheme.primaryContainer
-                                ) {
-                                    Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.Key, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            "Kode: ${outlet.activationCode}",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                                        )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                if (!outlet.activationCode.isNullOrBlank()) {
+                                    Surface(
+                                        shape = MaterialTheme.shapes.small,
+                                        color = MaterialTheme.colorScheme.primaryContainer
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Key,
+                                                null,
+                                                modifier = Modifier.size(14.dp),
+                                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                "Kode: ${outlet.activationCode}",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                            )
+                                        }
                                     }
                                 }
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            TextButton(
-                                onClick = { onNavigateToTransactions(outlet.id) },
-                                modifier = Modifier.align(Alignment.End)
-                            ) {
-                                Icon(Icons.Default.Receipt, null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Lihat Transaksi")
+                                Spacer(modifier = Modifier.height(8.dp))
+                                TextButton(
+                                    onClick = { onNavigateToTransactions(outlet.id) },
+                                    modifier = Modifier.align(Alignment.End)
+                                ) {
+                                    Icon(Icons.Default.Receipt, null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Lihat Transaksi")
+                                }
                             }
                         }
                     }

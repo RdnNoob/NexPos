@@ -5,11 +5,9 @@ import { authenticateToken, AuthRequest } from "../middleware/auth";
 
 const router = Router();
 
-function toClientId(value: unknown): unknown {
-  const numberValue = Number(value);
-  return Number.isSafeInteger(numberValue) && String(value) === String(numberValue)
-    ? numberValue
-    : value;
+function safeInt(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.floor(n) : 0;
 }
 
 router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
@@ -17,35 +15,38 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Prom
     await ensureRuntimeSchema();
     const result = await pool.query(
       "SELECT id, owner_id, name, activation_code, created_at FROM outlets WHERE owner_id::text = $1::text ORDER BY created_at DESC",
-      [req.userId]
+      [String(req.userId)]
     );
-    res.json({ outlets: result.rows.map(r => ({
-      id: r.id,
-      ownerId: toClientId(r.owner_id),
-      name: r.name,
-      activationCode: r.activation_code,
-      createdAt: r.created_at,
-    })) });
+    res.json({
+      outlets: result.rows.map((r) => ({
+        id: safeInt(r.id),
+        ownerId: safeInt(r.owner_id),
+        name: r.name as string,
+        activationCode: r.activation_code as string,
+        createdAt: r.created_at,
+      })),
+    });
   } catch (err) {
-    console.error(err);
+    console.error("[Outlets GET]", err);
     res.status(500).json({ message: "Terjadi kesalahan server" });
   }
 });
 
 router.post("/", authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
   const { name } = req.body;
-  if (!name) {
+  if (!name || String(name).trim().length === 0) {
     res.status(400).json({ message: "Nama outlet wajib diisi" });
     return;
   }
 
   try {
     await ensureRuntimeSchema();
+
     const countResult = await pool.query(
       "SELECT COUNT(*) FROM outlets WHERE owner_id::text = $1::text",
-      [req.userId]
+      [String(req.userId)]
     );
-    const count = parseInt(countResult.rows[0].count);
+    const count = parseInt(countResult.rows[0].count, 10);
     if (count >= 5) {
       res.status(403).json({ message: "Batas maksimal 5 outlet per owner tercapai" });
       return;
@@ -54,21 +55,21 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response): Pro
     const activationCode = nanoid(8).toUpperCase();
     const result = await pool.query(
       "INSERT INTO outlets (owner_id, name, activation_code) VALUES ($1, $2, $3) RETURNING *",
-      [String(req.userId), name, activationCode]
+      [String(req.userId), String(name).trim(), activationCode]
     );
     const outlet = result.rows[0];
 
     res.status(201).json({
       outlet: {
-        id: outlet.id,
-        ownerId: toClientId(outlet.owner_id),
-        name: outlet.name,
-        activationCode: outlet.activation_code,
+        id: safeInt(outlet.id),
+        ownerId: safeInt(outlet.owner_id),
+        name: outlet.name as string,
+        activationCode: outlet.activation_code as string,
         createdAt: outlet.created_at,
       },
     });
   } catch (err) {
-    console.error(err);
+    console.error("[Outlets POST]", err);
     res.status(500).json({ message: "Terjadi kesalahan server" });
   }
 });
