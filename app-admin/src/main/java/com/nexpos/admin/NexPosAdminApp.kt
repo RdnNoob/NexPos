@@ -25,7 +25,7 @@ class NexPosAdminApp : Application() {
                     append(throwable.stackTraceToString().take(1500))
                 }
                 val prefs = getSharedPreferences("crash_log", MODE_PRIVATE)
-                prefs.edit().putString("last_crash", msg).apply()
+                prefs.edit().putString("last_crash", msg).commit()
             } catch (_: Exception) {}
             defaultHandler?.uncaughtException(thread, throwable)
         }
