@@ -1,8 +1,8 @@
 package com.nexpos.laundry.ui.screens.transaction
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -153,57 +153,74 @@ fun TransactionListScreen(
                 }
             }
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(state.transactions) { tx ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = { if (tx.status != "selesai") selectedTx = tx }
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(tx.customer, fontWeight = FontWeight.Bold)
-                                    Text(
-                                        tx.service ?: "-",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                StatusChip(status = tx.status)
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(
-                                    "Rp ${"%,.0f".format(tx.amount)}",
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Row {
-                                    if (tx.status != "selesai") {
-                                        Text(
-                                            "Tap untuk update status",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            TextButton(
-                                onClick = { receiptTx = tx },
-                                contentPadding = PaddingValues(0.dp),
-                                modifier = Modifier.height(28.dp)
-                            ) {
-                                Icon(Icons.Default.Receipt, null, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Lihat Struk", style = MaterialTheme.typography.labelSmall)
-                            }
-                        }
+                state.transactions.forEach { tx ->
+                    TransactionCard(
+                        tx = tx,
+                        onUpdateStatus = { if (tx.status != "selesai") selectedTx = tx },
+                        onShowReceipt = { receiptTx = tx }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TransactionCard(
+    tx: TransactionInfo,
+    onUpdateStatus: () -> Unit,
+    onShowReceipt: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onUpdateStatus
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(tx.customer, fontWeight = FontWeight.Bold)
+                    Text(
+                        tx.service ?: "-",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                StatusChip(status = tx.status)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    "Rp ${"%,.0f".format(tx.amount)}",
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Row {
+                    if (tx.status != "selesai") {
+                        Text(
+                            "Tap untuk update status",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            TextButton(
+                onClick = onShowReceipt,
+                contentPadding = PaddingValues(0.dp),
+                modifier = Modifier.height(28.dp)
+            ) {
+                Icon(Icons.Default.Receipt, null, modifier = Modifier.size(14.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Lihat Struk", style = MaterialTheme.typography.labelSmall)
             }
         }
     }

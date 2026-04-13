@@ -96,9 +96,13 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
 
   try {
     await initDb();
+    const normalizedActivationCode = String(activationCode).trim().toUpperCase();
+    const normalizedDeviceId = String(deviceId).trim();
+    const normalizedDeviceName = String(deviceName).trim();
+
     const outletResult = await pool.query(
-      "SELECT * FROM outlets WHERE activation_code = $1",
-      [activationCode]
+      "SELECT * FROM outlets WHERE UPPER(TRIM(activation_code)) = $1",
+      [normalizedActivationCode]
     );
     if (outletResult.rows.length === 0) {
       res.status(401).json({ message: "Kode aktivasi tidak valid" });
@@ -108,13 +112,13 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
 
     const existingDevice = await pool.query(
       "SELECT * FROM devices WHERE device_id = $1",
-      [deviceId]
+      [normalizedDeviceId]
     );
 
     if (existingDevice.rows.length === 0) {
       const deviceCountResult = await pool.query(
-        "SELECT COUNT(*) FROM devices WHERE owner_id::text = $1::text",
-        [outlet.owner_id]
+        "SELECT COUNT(*) FROM devices WHERE owner_id::text = $1::text OR outlet_id = $2",
+        [String(outlet.owner_id), outlet.id]
       );
       const deviceCount = parseInt(deviceCountResult.rows[0].count);
       if (deviceCount >= 5) {
@@ -126,22 +130,28 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
     let device;
     if (existingDevice.rows.length > 0) {
       const updated = await pool.query(
-        "UPDATE devices SET status = 'online', last_seen = NOW(), device_name = $1 WHERE device_id = $2 RETURNING *",
-        [deviceName, deviceId]
+        "UPDATE devices SET status = 'online', last_seen = NOW(), device_name = $1, owner_id = $2, outlet_id = $3 WHERE device_id = $4 RETURNING *",
+        [normalizedDeviceName, String(outlet.owner_id), outlet.id, normalizedDeviceId]
       );
       device = updated.rows[0];
     } else {
       const inserted = await pool.query(
         "INSERT INTO devices (owner_id, outlet_id, device_name, device_id, status, last_seen) VALUES ($1, $2, $3, $4, 'online', NOW()) RETURNING *",
-        [String(outlet.owner_id), outlet.id, deviceName, deviceId]
+        [String(outlet.owner_id), outlet.id, normalizedDeviceName, normalizedDeviceId]
       );
       device = inserted.rows[0];
     }
 
-    const ownerResult = await pool.query("SELECT * FROM users WHERE id = $1", [outlet.owner_id]);
+    const ownerResult = await pool.query("SELECT * FROM users WHERE id::text = $1::text", [String(outlet.owner_id)]);
     const owner = ownerResult.rows[0];
+    const tokenPayload = {
+      userId: String(owner?.id ?? outlet.owner_id),
+      email: owner?.email ?? "",
+      deviceId: device.id,
+      outletId: outlet.id,
+    };
 
-    const token = generateToken({ userId: owner.id, email: owner.email, deviceId: device.id, outletId: outlet.id });
+    const token = generateToken(tokenPayload);
 
     res.json({
       token,
