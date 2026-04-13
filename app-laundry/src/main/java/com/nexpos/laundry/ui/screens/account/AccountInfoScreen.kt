@@ -81,7 +81,7 @@ fun AccountInfoScreen(
                         }
                     }
 
-                    HorizontalDivider()
+                    Divider()
 
                     InfoRow(
                         icon = Icons.Default.Store,
@@ -100,7 +100,7 @@ fun AccountInfoScreen(
                     )
 
                     if (state.activationCode.isNotBlank()) {
-                        HorizontalDivider()
+                        Divider()
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,

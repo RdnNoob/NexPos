@@ -163,4 +163,44 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
   }
 });
 
+router.delete("/account", async (req: Request, res: Response): Promise<void> => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+
+  if (!token) {
+    res.status(401).json({ message: "Token tidak ditemukan" });
+    return;
+  }
+
+  try {
+    const secret = process.env.JWT_SECRET || "nexpos_secret";
+    const decoded = jwt.verify(token, secret) as { userId: string | number; email: string };
+    const userId = decoded.userId;
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("DELETE FROM transactions WHERE outlet_id IN (SELECT id FROM outlets WHERE owner_id::text = $1::text)", [userId]);
+      await client.query("DELETE FROM devices WHERE owner_id::text = $1::text", [userId]);
+      await client.query("DELETE FROM outlets WHERE owner_id::text = $1::text", [userId]);
+      await client.query("DELETE FROM users WHERE id::text = $1::text", [userId]);
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    res.json({ message: "Akun berhasil dihapus" });
+  } catch (err: any) {
+    if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
+      res.status(401).json({ message: "Token tidak valid atau sudah kadaluarsa" });
+      return;
+    }
+    console.error(err);
+    res.status(500).json({ message: "Terjadi kesalahan server" });
+  }
+});
+
 export default router;

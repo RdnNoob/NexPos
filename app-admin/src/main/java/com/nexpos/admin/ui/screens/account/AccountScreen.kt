@@ -109,7 +109,7 @@ fun AccountScreen(
                         }
                     }
 
-                    HorizontalDivider()
+                    Divider()
 
                     InfoRow(icon = Icons.Default.Email, label = "Email", value = state.userEmail.ifBlank { "-" })
                     InfoRow(icon = Icons.Default.Badge, label = "Nama", value = state.userName.ifBlank { "-" })
