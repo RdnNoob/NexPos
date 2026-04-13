@@ -18,6 +18,7 @@ import com.nexpos.laundry.ui.viewmodel.LaundryTransactionViewModel
 fun HomeScreen(
     onNavigateToCreate: () -> Unit,
     onNavigateToList: () -> Unit,
+    onNavigateToAccount: () -> Unit,
     onLogout: () -> Unit,
     heartbeatViewModel: HeartbeatViewModel = hiltViewModel(),
     txViewModel: LaundryTransactionViewModel = hiltViewModel()
@@ -39,7 +40,6 @@ fun HomeScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        // FIX: Clear session before navigating to login
                         heartbeatViewModel.logout()
                         onLogout()
                     },
@@ -79,6 +79,9 @@ fun HomeScreen(
                 actions = {
                     IconButton(onClick = { txViewModel.loadTransactions() }) {
                         Icon(Icons.Default.Refresh, "Refresh", tint = MaterialTheme.colorScheme.onPrimary)
+                    }
+                    IconButton(onClick = onNavigateToAccount) {
+                        Icon(Icons.Default.AccountCircle, "Info Akun", tint = MaterialTheme.colorScheme.onPrimary)
                     }
                     IconButton(onClick = { showLogoutDialog = true }) {
                         Icon(Icons.Default.Logout, "Keluar", tint = MaterialTheme.colorScheme.onPrimary)
@@ -127,10 +130,7 @@ fun HomeScreen(
                 }
             }
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onNavigateToCreate
-            ) {
+            Card(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToCreate) {
                 Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.AddCircle, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
                     Spacer(modifier = Modifier.width(16.dp))
@@ -143,10 +143,7 @@ fun HomeScreen(
                 }
             }
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onNavigateToList
-            ) {
+            Card(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToList) {
                 Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.List, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(36.dp))
                     Spacer(modifier = Modifier.width(16.dp))

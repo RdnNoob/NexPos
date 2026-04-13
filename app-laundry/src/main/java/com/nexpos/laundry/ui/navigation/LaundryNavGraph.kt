@@ -3,17 +3,21 @@ package com.nexpos.laundry.ui.navigation
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.*
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.*
+import com.nexpos.laundry.ui.screens.account.AccountInfoScreen
 import com.nexpos.laundry.ui.screens.auth.LoginDeviceScreen
 import com.nexpos.laundry.ui.screens.home.HomeScreen
 import com.nexpos.laundry.ui.screens.splash.SplashScreen
 import com.nexpos.laundry.ui.screens.transaction.CreateTransactionScreen
 import com.nexpos.laundry.ui.screens.transaction.TransactionListScreen
+import com.nexpos.laundry.ui.viewmodel.HeartbeatViewModel
 
 sealed class LaundryScreen(val route: String) {
     object Splash : LaundryScreen("splash")
     object Login : LaundryScreen("login")
     object Home : LaundryScreen("home")
+    object AccountInfo : LaundryScreen("account_info")
     object CreateTransaction : LaundryScreen("create_transaction")
     object TransactionList : LaundryScreen("transaction_list")
 }
@@ -65,11 +69,25 @@ fun LaundryNavGraph() {
             )
         }
         composable(LaundryScreen.Home.route) {
+            val heartbeatViewModel: HeartbeatViewModel = hiltViewModel()
+            val sessionExpired by heartbeatViewModel.sessionExpired.collectAsState()
+
+            LaunchedEffect(sessionExpired) {
+                if (sessionExpired) {
+                    navController.navigate(LaundryScreen.Login.route) { popUpTo(0) }
+                }
+            }
+
             HomeScreen(
                 onNavigateToCreate = { navController.navigate(LaundryScreen.CreateTransaction.route) },
                 onNavigateToList = { navController.navigate(LaundryScreen.TransactionList.route) },
-                onLogout = { navController.navigate(LaundryScreen.Login.route) { popUpTo(0) } }
+                onNavigateToAccount = { navController.navigate(LaundryScreen.AccountInfo.route) },
+                onLogout = { navController.navigate(LaundryScreen.Login.route) { popUpTo(0) } },
+                heartbeatViewModel = heartbeatViewModel
             )
+        }
+        composable(LaundryScreen.AccountInfo.route) {
+            AccountInfoScreen(onNavigateBack = { navController.popBackStack() })
         }
         composable(LaundryScreen.CreateTransaction.route) {
             CreateTransactionScreen(
@@ -78,9 +96,7 @@ fun LaundryNavGraph() {
             )
         }
         composable(LaundryScreen.TransactionList.route) {
-            TransactionListScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
+            TransactionListScreen(onNavigateBack = { navController.popBackStack() })
         }
     }
 }

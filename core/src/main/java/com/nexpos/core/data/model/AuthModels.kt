@@ -25,7 +25,7 @@ data class AuthResponse(
 )
 
 data class UserInfo(
-    val id: Int,
+    val id: String,
     val email: String,
     val name: String
 )
@@ -33,7 +33,7 @@ data class UserInfo(
 data class OutletInfo(
     val id: Int,
     val name: String,
-    val ownerId: Int,
+    val ownerId: String,
     val activationCode: String? = null
 )
 

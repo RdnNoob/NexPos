@@ -23,10 +23,30 @@ fun DashboardScreen(
     onNavigateToOutlets: () -> Unit,
     onNavigateToDevices: () -> Unit,
     onNavigateToTransactions: () -> Unit,
+    onNavigateToAccount: () -> Unit,
     onLogout: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    var showLogoutDialog by remember { mutableStateOf(false) }
+
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text("Keluar") },
+            text = { Text("Yakin ingin keluar dari akun ini?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.logout()
+                        onLogout()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Keluar") }
+            },
+            dismissButton = { TextButton(onClick = { showLogoutDialog = false }) { Text("Batal") } }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -49,10 +69,10 @@ fun DashboardScreen(
                     IconButton(onClick = { viewModel.loadDashboard() }) {
                         Icon(Icons.Default.Refresh, "Refresh", tint = MaterialTheme.colorScheme.onPrimary)
                     }
-                    IconButton(onClick = {
-                        viewModel.logout()
-                        onLogout()
-                    }) {
+                    IconButton(onClick = onNavigateToAccount) {
+                        Icon(Icons.Default.AccountCircle, "Akun", tint = MaterialTheme.colorScheme.onPrimary)
+                    }
+                    IconButton(onClick = { showLogoutDialog = true }) {
                         Icon(Icons.Default.Logout, "Keluar", tint = MaterialTheme.colorScheme.onPrimary)
                     }
                 }
@@ -134,14 +154,8 @@ fun DashboardScreen(
                     }
                 }
                 item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = onNavigateToTransactions
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                    Card(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToTransactions) {
+                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Receipt, null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
@@ -162,10 +176,7 @@ fun DashboardScreen(
                     }
                     items(state.transactions.take(5)) { tx ->
                         Card(modifier = Modifier.fillMaxWidth()) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(tx.customer, fontWeight = FontWeight.SemiBold)
                                     Text(
@@ -188,11 +199,7 @@ fun DashboardScreen(
                 state.error?.let { error ->
                     item {
                         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
-                            Text(
-                                error,
-                                modifier = Modifier.padding(12.dp),
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
+                            Text(error, modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onErrorContainer)
                         }
                     }
                 }

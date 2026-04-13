@@ -6,6 +6,7 @@ import androidx.compose.runtime.*
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
+import com.nexpos.admin.ui.screens.account.AccountScreen
 import com.nexpos.admin.ui.screens.auth.LoginScreen
 import com.nexpos.admin.ui.screens.auth.RegisterScreen
 import com.nexpos.admin.ui.screens.dashboard.DashboardScreen
@@ -20,6 +21,7 @@ sealed class AdminScreen(val route: String) {
     object Login : AdminScreen("login")
     object Register : AdminScreen("register")
     object Dashboard : AdminScreen("dashboard")
+    object Account : AdminScreen("account")
     object Outlets : AdminScreen("outlets")
     object CreateOutlet : AdminScreen("create_outlet")
     object Devices : AdminScreen("devices")
@@ -85,7 +87,14 @@ fun AdminNavGraph() {
                 onNavigateToOutlets = { navController.navigate(AdminScreen.Outlets.route) },
                 onNavigateToDevices = { navController.navigate(AdminScreen.Devices.route) },
                 onNavigateToTransactions = { navController.navigate(AdminScreen.Transactions.route) },
+                onNavigateToAccount = { navController.navigate(AdminScreen.Account.route) },
                 onLogout = { navController.navigate(AdminScreen.Login.route) { popUpTo(0) } }
+            )
+        }
+        composable(AdminScreen.Account.route) {
+            AccountScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onAccountDeleted = { navController.navigate(AdminScreen.Login.route) { popUpTo(0) } }
             )
         }
         composable(AdminScreen.Outlets.route) {

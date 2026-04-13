@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.io.IOException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -22,6 +23,9 @@ class HeartbeatViewModel @Inject constructor(
 
     private val _isOnline = MutableStateFlow(false)
     val isOnline: StateFlow<Boolean> = _isOnline
+
+    private val _sessionExpired = MutableStateFlow(false)
+    val sessionExpired: StateFlow<Boolean> = _sessionExpired
 
     private var heartbeatStarted = false
 
@@ -36,12 +40,21 @@ class HeartbeatViewModel @Inject constructor(
                     if (!tokenRaw.isNullOrEmpty() && !deviceId.isNullOrEmpty()) {
                         val token = "Bearer $tokenRaw"
                         val res = api.sendHeartbeat(token, HeartbeatRequest(deviceId))
+                        if (res.code() == 401 || res.code() == 403) {
+                            // Akun dihapus atau sesi tidak valid, paksa logout
+                            session.clearSession()
+                            _isOnline.value = false
+                            _sessionExpired.value = true
+                            return@launch
+                        }
                         _isOnline.value = res.isSuccessful
                     } else {
                         _isOnline.value = false
                     }
                 } catch (e: CancellationException) {
                     throw e
+                } catch (e: IOException) {
+                    _isOnline.value = false
                 } catch (e: Exception) {
                     _isOnline.value = false
                 }

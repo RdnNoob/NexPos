@@ -18,6 +18,9 @@ interface NexPosApi {
     @POST("/api/auth/login-device")
     suspend fun loginDevice(@Body request: DeviceLoginRequest): Response<AuthResponse>
 
+    @DELETE("/api/auth/account")
+    suspend fun deleteAccount(@Header("Authorization") token: String): Response<MessageResponse>
+
     @GET("/api/outlets")
     suspend fun getOutlets(@Header("Authorization") token: String): Response<OutletListResponse>
 

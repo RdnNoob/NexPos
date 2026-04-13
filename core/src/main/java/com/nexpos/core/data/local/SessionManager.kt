@@ -20,26 +20,33 @@ class SessionManager(private val context: Context) {
         val TOKEN_KEY = stringPreferencesKey("jwt_token")
         val USER_NAME_KEY = stringPreferencesKey("user_name")
         val USER_EMAIL_KEY = stringPreferencesKey("user_email")
-        val USER_ID_KEY = intPreferencesKey("user_id")
+        val USER_ID_KEY = stringPreferencesKey("user_id")
         val OUTLET_ID_KEY = intPreferencesKey("outlet_id")
         val OUTLET_NAME_KEY = stringPreferencesKey("outlet_name")
+        val OUTLET_CODE_KEY = stringPreferencesKey("outlet_code")
         val DEVICE_ID_KEY = stringPreferencesKey("device_id")
+        val DEVICE_NAME_KEY = stringPreferencesKey("device_name")
         val DEVICE_DB_ID_KEY = intPreferencesKey("device_db_id")
     }
 
     val tokenFlow: Flow<String?> = context.dataStore.data.map { it[TOKEN_KEY] }
     val userNameFlow: Flow<String?> = context.dataStore.data.map { it[USER_NAME_KEY] }
+    val userEmailFlow: Flow<String?> = context.dataStore.data.map { it[USER_EMAIL_KEY] }
     val outletNameFlow: Flow<String?> = context.dataStore.data.map { it[OUTLET_NAME_KEY] }
 
     suspend fun getToken(): String? = context.dataStore.data.first()[TOKEN_KEY]
     suspend fun getOutletId(): Int? = context.dataStore.data.first()[OUTLET_ID_KEY]
+    suspend fun getOutletName(): String? = context.dataStore.data.first()[OUTLET_NAME_KEY]
+    suspend fun getOutletCode(): String? = context.dataStore.data.first()[OUTLET_CODE_KEY]
     suspend fun getDeviceId(): String? = context.dataStore.data.first()[DEVICE_ID_KEY]
+    suspend fun getDeviceName(): String? = context.dataStore.data.first()[DEVICE_NAME_KEY]
+    suspend fun getUserName(): String? = context.dataStore.data.first()[USER_NAME_KEY]
+    suspend fun getUserEmail(): String? = context.dataStore.data.first()[USER_EMAIL_KEY]
 
     fun getBearerToken(): Flow<String?> = context.dataStore.data.map {
         it[TOKEN_KEY]?.let { token -> "Bearer $token" }
     }
 
-    // FIX: Persists device ID so the same device doesn't register as new every session
     suspend fun getOrCreateDeviceId(): String {
         val existing = context.dataStore.data.first()[DEVICE_ID_KEY]
         if (!existing.isNullOrBlank()) return existing
@@ -68,17 +75,18 @@ class SessionManager(private val context: Context) {
             outlet?.let { o ->
                 it[OUTLET_ID_KEY] = o.id
                 it[OUTLET_NAME_KEY] = o.name
+                o.activationCode?.let { code -> it[OUTLET_CODE_KEY] = code }
             }
             it[DEVICE_ID_KEY] = deviceIdLocal
             device?.let { d ->
                 it[DEVICE_DB_ID_KEY] = d.id
+                it[DEVICE_NAME_KEY] = d.deviceName
             }
         }
     }
 
     suspend fun clearSession() {
         context.dataStore.edit { prefs ->
-            // FIX: Keep device_id persisted across logout so device stays consistent
             val savedDeviceId = prefs[DEVICE_ID_KEY]
             prefs.clear()
             savedDeviceId?.let { prefs[DEVICE_ID_KEY] = it }
