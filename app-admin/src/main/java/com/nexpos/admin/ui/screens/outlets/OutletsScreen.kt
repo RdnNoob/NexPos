@@ -32,10 +32,6 @@ fun OutletsScreen(
 
     var outletToDelete by remember { mutableStateOf<OutletInfo?>(null) }
 
-    LaunchedEffect(Unit) {
-        viewModel.loadOutlets()
-    }
-
     LaunchedEffect(state.successMessage) {
         if (state.successMessage != null) {
             snackbarHostState.showSnackbar(state.successMessage!!)
@@ -152,14 +148,14 @@ fun OutletsScreen(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    item {
+                    item(key = "outlet_count") {
                         Text(
                             "${state.outlets.size}/5 outlet",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    items(state.outlets, key = { it.id }) { outlet ->
+                    items(state.outlets, key = { "outlet_${it.id}" }) { outlet ->
                         val isDeleting = state.deletingOutletId == outlet.id
                         val activationCode: String = outlet.activationCode.orEmpty()
                         Card(modifier = Modifier.fillMaxWidth()) {

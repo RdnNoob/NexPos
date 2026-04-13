@@ -20,7 +20,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Prom
     res.json({
       outlets: result.rows.map((r) => ({
         id: safeInt(r.id),
-        ownerId: safeInt(r.owner_id),
+        ownerId: String(r.owner_id),
         name: r.name as string,
         activationCode: r.activation_code as string,
         createdAt: r.created_at,
@@ -62,7 +62,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response): Pro
     res.status(201).json({
       outlet: {
         id: safeInt(outlet.id),
-        ownerId: safeInt(outlet.owner_id),
+        ownerId: String(outlet.owner_id),
         name: outlet.name as string,
         activationCode: outlet.activation_code as string,
         createdAt: outlet.created_at,
