@@ -231,15 +231,29 @@ fun SplashScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 32.dp)
+                .padding(bottom = 28.dp)
                 .alpha(taglineAlpha),
             contentAlignment = Alignment.BottomCenter
         ) {
-            Text(
-                text = "v1.0.0",
-                color = Color.White.copy(alpha = 0.4f),
-                fontSize = 12.sp
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Made by RDNS & Replit",
+                    color = Color.White.copy(alpha = 0.65f),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 0.5.sp,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "v1.0.0",
+                    color = Color.White.copy(alpha = 0.35f),
+                    fontSize = 10.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }
