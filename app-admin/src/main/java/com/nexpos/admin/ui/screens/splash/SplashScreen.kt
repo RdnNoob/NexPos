@@ -99,8 +99,14 @@ fun SplashScreen(
     LaunchedEffect(isLoggedIn) {
         if (isLoggedIn != null && !hasNavigated && lastCrash == null) {
             delay(1200)
-            hasNavigated = true
-            if (isLoggedIn == true) onNavigateToDashboard() else onNavigateToLogin()
+            if (!hasNavigated) {
+                hasNavigated = true
+                try {
+                    if (isLoggedIn == true) onNavigateToDashboard() else onNavigateToLogin()
+                } catch (_: Exception) {
+                    hasNavigated = false
+                }
+            }
         }
     }
 
