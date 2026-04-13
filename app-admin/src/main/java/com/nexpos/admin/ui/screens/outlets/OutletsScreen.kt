@@ -161,6 +161,7 @@ fun OutletsScreen(
                     }
                     items(state.outlets, key = { it.id }) { outlet ->
                         val isDeleting = state.deletingOutletId == outlet.id
+                        val activationCode: String = outlet.activationCode.orEmpty()
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -192,7 +193,7 @@ fun OutletsScreen(
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(12.dp))
-                                if (!outlet.activationCode.isNullOrBlank()) {
+                                if (activationCode.isNotBlank()) {
                                     Surface(
                                         shape = MaterialTheme.shapes.small,
                                         color = MaterialTheme.colorScheme.primaryContainer
@@ -211,7 +212,7 @@ fun OutletsScreen(
                                             )
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text(
-                                                "Kode: ${outlet.activationCode}",
+                                                "Kode: $activationCode",
                                                 style = MaterialTheme.typography.labelMedium,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -219,7 +220,7 @@ fun OutletsScreen(
                                             )
                                             IconButton(
                                                 onClick = {
-                                                    clipboardManager.setText(AnnotatedString(outlet.activationCode))
+                                                    clipboardManager.setText(AnnotatedString(activationCode))
                                                 },
                                                 modifier = Modifier.size(28.dp)
                                             ) {
