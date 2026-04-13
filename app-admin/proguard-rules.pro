@@ -119,10 +119,23 @@
 }
 
 # ============= Compose =============
+# Wildcard ** tidak match inner class ($), harus eksplisit pakai $*
 -dontwarn androidx.compose.**
 -keep class androidx.compose.** { *; }
+-keep class androidx.compose.**$* { *; }
+-keepclassmembers class androidx.compose.** { *; }
+-keepclassmembers class androidx.compose.**$* { *; }
+
+# Spesifik: KeyframesSpec$KeyframesSpecConfig.at() yang dihapus R8
+-keep class androidx.compose.animation.core.KeyframesSpec { *; }
+-keep class androidx.compose.animation.core.KeyframesSpec$* { *; }
+-keepclassmembers class androidx.compose.animation.core.KeyframesSpec$* {
+    *;
+}
 
 # ============= AndroidX / Lifecycle =============
 -keep class androidx.lifecycle.** { *; }
+-keep class androidx.lifecycle.**$* { *; }
 -keep class androidx.navigation.** { *; }
+-keep class androidx.navigation.**$* { *; }
 -dontwarn androidx.**
