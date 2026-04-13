@@ -17,6 +17,25 @@ data class DeviceLoginRequest(
     val deviceId: String
 )
 
+data class ForgotPasswordRequest(
+    val email: String
+)
+
+data class VerifyOtpRequest(
+    val email: String,
+    val otp: String
+)
+
+data class ResetPasswordRequest(
+    val email: String,
+    val resetToken: String,
+    val newPassword: String
+)
+
+data class VerifyOtpResponse(
+    val resetToken: String
+)
+
 data class AuthResponse(
     val token: String,
     val user: UserInfo? = null,
@@ -45,23 +64,4 @@ data class DeviceInfo(
     val outletId: Int,
     val lastSeen: String? = null,
     val outletName: String? = null
-)
-
-data class ForgotPasswordRequest(
-    val email: String
-)
-
-data class VerifyOtpRequest(
-    val email: String,
-    val otp: String
-)
-
-data class VerifyOtpResponse(
-    val message: String,
-    val resetToken: String
-)
-
-data class ResetPasswordRequest(
-    val resetToken: String,
-    val newPassword: String
 )

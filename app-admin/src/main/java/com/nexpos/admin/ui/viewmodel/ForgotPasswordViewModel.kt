@@ -7,22 +7,29 @@ import com.nexpos.core.data.model.ForgotPasswordRequest
 import com.nexpos.core.data.model.ResetPasswordRequest
 import com.nexpos.core.data.model.VerifyOtpRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.io.IOException
 import javax.inject.Inject
 
 data class ForgotPasswordState(
+    val step: ForgotPasswordStep = ForgotPasswordStep.EMAIL,
     val isLoading: Boolean = false,
     val error: String? = null,
     val successMessage: String? = null,
-    val otpSent: Boolean = false,
-    val otpVerified: Boolean = false,
-    val resetDone: Boolean = false,
+    val resendCountdown: Int = 0,
+    // internal
+    val email: String = "",
     val resetToken: String = ""
 )
+
+enum class ForgotPasswordStep {
+    EMAIL, OTP, NEW_PASSWORD, DONE
+}
 
 @HiltViewModel
 class ForgotPasswordViewModel @Inject constructor(
@@ -30,127 +37,153 @@ class ForgotPasswordViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ForgotPasswordState())
-    val state: StateFlow<ForgotPasswordState> = _state
+    val state: StateFlow<ForgotPasswordState> = _state.asStateFlow()
 
-    fun requestOtp(email: String) {
+    private var countdownJob: Job? = null
+
+    fun sendOtp(email: String) {
         if (email.isBlank()) {
-            _state.value = _state.value.copy(error = "Email wajib diisi")
-            return
-        }
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()) {
-            _state.value = _state.value.copy(error = "Format email tidak valid")
+            _state.update { it.copy(error = "Email wajib diisi") }
             return
         }
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, error = null)
+            _state.update { it.copy(isLoading = true, error = null) }
             try {
-                val res = api.forgotPassword(ForgotPasswordRequest(email.trim().lowercase()))
-                if (res.isSuccessful) {
-                    _state.value = _state.value.copy(
-                        isLoading = false,
-                        otpSent = true,
-                        successMessage = res.body()?.message ?: "Kode OTP telah dikirim ke email kamu"
-                    )
-                } else {
-                    val msg = when (res.code()) {
-                        503 -> "Layanan email belum dikonfigurasi di server"
-                        500 -> "Gagal mengirim email. Coba beberapa saat lagi."
-                        else -> "Gagal memproses permintaan (${res.code()})"
+                val response = api.forgotPassword(ForgotPasswordRequest(email.trim().lowercase()))
+                if (response.isSuccessful) {
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            step = ForgotPasswordStep.OTP,
+                            email = email.trim().lowercase(),
+                            error = null
+                        )
                     }
-                    _state.value = _state.value.copy(isLoading = false, error = msg)
+                    startResendCountdown()
+                } else {
+                    val msg = parseError(response.errorBody()?.string())
+                    _state.update { it.copy(isLoading = false, error = msg) }
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: IOException) {
-                _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server. Periksa koneksi internet.")
             } catch (e: Exception) {
-                _state.value = _state.value.copy(isLoading = false, error = "Terjadi kesalahan. Coba lagi.")
+                _state.update { it.copy(isLoading = false, error = "Tidak dapat terhubung ke server") }
             }
         }
     }
 
-    fun verifyOtp(email: String, otp: String) {
+    fun resendOtp() {
+        val email = _state.value.email
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
+            try {
+                val response = api.forgotPassword(ForgotPasswordRequest(email))
+                if (response.isSuccessful) {
+                    _state.update { it.copy(isLoading = false, successMessage = "Kode OTP baru telah dikirim", error = null) }
+                    startResendCountdown()
+                } else {
+                    val msg = parseError(response.errorBody()?.string())
+                    _state.update { it.copy(isLoading = false, error = msg) }
+                }
+            } catch (e: Exception) {
+                _state.update { it.copy(isLoading = false, error = "Tidak dapat terhubung ke server") }
+            }
+        }
+    }
+
+    fun verifyOtp(otp: String) {
         if (otp.length != 6) {
-            _state.value = _state.value.copy(error = "Masukkan 6 digit kode OTP")
+            _state.update { it.copy(error = "Masukkan 6 digit kode OTP") }
             return
         }
+        val email = _state.value.email
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, error = null)
+            _state.update { it.copy(isLoading = true, error = null, successMessage = null) }
             try {
-                val res = api.verifyOtp(VerifyOtpRequest(email.trim().lowercase(), otp.trim()))
-                if (res.isSuccessful) {
-                    val body = res.body()
-                    if (body?.resetToken.isNullOrBlank()) {
-                        _state.value = _state.value.copy(isLoading = false, error = "Respons server tidak valid")
-                        return@launch
+                val response = api.verifyOtp(VerifyOtpRequest(email, otp.trim()))
+                if (response.isSuccessful) {
+                    val token = response.body()?.resetToken ?: ""
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            step = ForgotPasswordStep.NEW_PASSWORD,
+                            resetToken = token,
+                            error = null
+                        )
                     }
-                    _state.value = _state.value.copy(
-                        isLoading = false,
-                        otpVerified = true,
-                        resetToken = body!!.resetToken
-                    )
                 } else {
-                    val msg = when (res.code()) {
-                        400 -> "Kode OTP salah atau sudah kadaluarsa"
-                        else -> "Verifikasi gagal (${res.code()})"
-                    }
-                    _state.value = _state.value.copy(isLoading = false, error = msg)
+                    val msg = parseError(response.errorBody()?.string())
+                    _state.update { it.copy(isLoading = false, error = msg) }
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: IOException) {
-                _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server. Periksa koneksi internet.")
             } catch (e: Exception) {
-                _state.value = _state.value.copy(isLoading = false, error = "Terjadi kesalahan. Coba lagi.")
+                _state.update { it.copy(isLoading = false, error = "Tidak dapat terhubung ke server") }
             }
         }
     }
 
     fun resetPassword(newPassword: String, confirmPassword: String) {
-        if (newPassword.isBlank()) {
-            _state.value = _state.value.copy(error = "Password baru wajib diisi")
-            return
-        }
         if (newPassword.length < 6) {
-            _state.value = _state.value.copy(error = "Password minimal 6 karakter")
+            _state.update { it.copy(error = "Password minimal 6 karakter") }
             return
         }
         if (newPassword != confirmPassword) {
-            _state.value = _state.value.copy(error = "Konfirmasi password tidak cocok")
+            _state.update { it.copy(error = "Konfirmasi password tidak cocok") }
             return
         }
+        val email = _state.value.email
         val token = _state.value.resetToken
-        if (token.isBlank()) {
-            _state.value = _state.value.copy(error = "Token tidak valid. Ulangi proses dari awal.")
-            return
-        }
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, error = null)
+            _state.update { it.copy(isLoading = true, error = null) }
             try {
-                val res = api.resetPassword(ResetPasswordRequest(token, newPassword))
-                if (res.isSuccessful) {
-                    _state.value = _state.value.copy(
-                        isLoading = false,
-                        resetDone = true,
-                        successMessage = "Password berhasil diubah! Silakan login dengan password baru."
-                    )
-                } else {
-                    val msg = when (res.code()) {
-                        400 -> "Token kadaluarsa. Ulangi proses dari awal."
-                        else -> "Gagal mengubah password (${res.code()})"
+                val response = api.resetPassword(ResetPasswordRequest(email, token, newPassword))
+                if (response.isSuccessful) {
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            step = ForgotPasswordStep.DONE,
+                            successMessage = response.body()?.message ?: "Password berhasil diperbarui",
+                            error = null
+                        )
                     }
-                    _state.value = _state.value.copy(isLoading = false, error = msg)
+                } else {
+                    val msg = parseError(response.errorBody()?.string())
+                    _state.update { it.copy(isLoading = false, error = msg) }
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: IOException) {
-                _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server. Periksa koneksi internet.")
             } catch (e: Exception) {
-                _state.value = _state.value.copy(isLoading = false, error = "Terjadi kesalahan. Coba lagi.")
+                _state.update { it.copy(isLoading = false, error = "Tidak dapat terhubung ke server") }
             }
         }
     }
 
-    fun clearError() { _state.value = _state.value.copy(error = null) }
-    fun clearMessage() { _state.value = _state.value.copy(successMessage = null) }
+    fun clearError() = _state.update { it.copy(error = null) }
+    fun clearSuccessMessage() = _state.update { it.copy(successMessage = null) }
+
+    private fun startResendCountdown() {
+        countdownJob?.cancel()
+        _state.update { it.copy(resendCountdown = 60) }
+        countdownJob = viewModelScope.launch {
+            repeat(60) {
+                delay(1_000)
+                _state.update { it.copy(resendCountdown = it.resendCountdown - 1) }
+            }
+        }
+    }
+
+    private fun parseError(raw: String?): String {
+        if (raw == null) return "Terjadi kesalahan server"
+        return try {
+            val start = raw.indexOf("\"message\":\"")
+            if (start == -1) "Terjadi kesalahan"
+            else {
+                val valueStart = start + 11
+                val valueEnd = raw.indexOf("\"", valueStart)
+                if (valueEnd == -1) "Terjadi kesalahan" else raw.substring(valueStart, valueEnd)
+            }
+        } catch (_: Exception) {
+            "Terjadi kesalahan"
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        countdownJob?.cancel()
+    }
 }
