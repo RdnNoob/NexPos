@@ -60,6 +60,16 @@ const migrations = [
   "UPDATE outlets SET created_at = NOW() WHERE created_at IS NULL",
   "UPDATE devices SET status = COALESCE(status, 'offline'), created_at = COALESCE(created_at, NOW()) WHERE status IS NULL OR created_at IS NULL",
   "UPDATE transactions SET created_at = COALESCE(created_at, NOW()), updated_at = COALESCE(updated_at, created_at, NOW()), status = COALESCE(status, 'diterima') WHERE created_at IS NULL OR updated_at IS NULL OR status IS NULL",
+  // Tabel OTP untuk reset password
+  `CREATE TABLE IF NOT EXISTS password_reset_otps (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL,
+    otp VARCHAR(6) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    used BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT NOW()
+  )`,
+  "CREATE INDEX IF NOT EXISTS idx_otp_email ON password_reset_otps(email)",
 ];
 
 export async function ensureRuntimeSchema() {
@@ -67,7 +77,7 @@ export async function ensureRuntimeSchema() {
     try {
       await pool.query(migration);
     } catch (err) {
-      console.warn("[DB] Migrasi dilewati:", migration, err);
+      console.warn("[DB] Migrasi dilewati:", err);
     }
   }
 }
@@ -113,6 +123,15 @@ export async function initDb() {
         status VARCHAR(50) DEFAULT 'diterima',
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS password_reset_otps (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        otp VARCHAR(6) NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        used BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT NOW()
       );
     `);
     await ensureRuntimeSchema();

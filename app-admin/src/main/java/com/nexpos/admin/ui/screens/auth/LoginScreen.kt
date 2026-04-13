@@ -21,6 +21,7 @@ import com.nexpos.core.ui.components.NexPosTextField
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onNavigateToRegister: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -76,7 +77,17 @@ fun LoginScreen(
             isPassword = true,
             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) }
         )
-        Spacer(modifier = Modifier.height(24.dp))
+
+        // Lupa Password link
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = { try { onNavigateToForgotPassword() } catch (_: Exception) { } }) {
+                Text(
+                    "Lupa Password?",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
 
         state.error?.let {
             Card(

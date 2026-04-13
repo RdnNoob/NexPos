@@ -46,3 +46,22 @@ data class DeviceInfo(
     val lastSeen: String? = null,
     val outletName: String? = null
 )
+
+data class ForgotPasswordRequest(
+    val email: String
+)
+
+data class VerifyOtpRequest(
+    val email: String,
+    val otp: String
+)
+
+data class VerifyOtpResponse(
+    val message: String,
+    val resetToken: String
+)
+
+data class ResetPasswordRequest(
+    val resetToken: String,
+    val newPassword: String
+)
