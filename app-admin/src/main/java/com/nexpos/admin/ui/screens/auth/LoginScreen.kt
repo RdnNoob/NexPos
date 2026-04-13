@@ -26,9 +26,18 @@ fun LoginScreen(
     val state by viewModel.state.collectAsState()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var hasNavigated by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.isSuccess) {
-        if (state.isSuccess) onLoginSuccess()
+        if (state.isSuccess && !hasNavigated) {
+            hasNavigated = true
+            try {
+                onLoginSuccess()
+            } catch (e: Exception) {
+                hasNavigated = false
+                viewModel.clearError()
+            }
+        }
     }
 
     Column(
@@ -95,7 +104,9 @@ fun LoginScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Belum punya akun?", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            TextButton(onClick = onNavigateToRegister) { Text("Daftar Sekarang") }
+            TextButton(onClick = {
+                try { onNavigateToRegister() } catch (_: Exception) { }
+            }) { Text("Daftar Sekarang") }
         }
     }
 }
