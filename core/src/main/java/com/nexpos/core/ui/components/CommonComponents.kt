@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -50,7 +51,8 @@ fun NexPosTextField(
     modifier: Modifier = Modifier,
     isPassword: Boolean = false,
     leadingIcon: @Composable (() -> Unit)? = null,
-    singleLine: Boolean = true
+    singleLine: Boolean = true,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
 ) {
     OutlinedTextField(
         value = value,
@@ -60,7 +62,8 @@ fun NexPosTextField(
         singleLine = singleLine,
         shape = RoundedCornerShape(12.dp),
         visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-        leadingIcon = leadingIcon
+        leadingIcon = leadingIcon,
+        keyboardOptions = keyboardOptions
     )
 }
 

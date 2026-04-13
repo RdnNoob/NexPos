@@ -18,6 +18,15 @@ interface NexPosApi {
     @POST("/api/auth/login-device")
     suspend fun loginDevice(@Body request: DeviceLoginRequest): Response<AuthResponse>
 
+    @POST("/api/auth/forgot-password")
+    suspend fun forgotPassword(@Body request: ForgotPasswordRequest): Response<MessageResponse>
+
+    @POST("/api/auth/verify-otp")
+    suspend fun verifyOtp(@Body request: VerifyOtpRequest): Response<VerifyOtpResponse>
+
+    @POST("/api/auth/reset-password")
+    suspend fun resetPassword(@Body request: ResetPasswordRequest): Response<MessageResponse>
+
     @DELETE("/api/auth/account")
     suspend fun deleteAccount(@Header("Authorization") token: String): Response<MessageResponse>
 

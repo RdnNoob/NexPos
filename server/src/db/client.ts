@@ -60,6 +60,10 @@ const migrations = [
   "UPDATE outlets SET created_at = NOW() WHERE created_at IS NULL",
   "UPDATE devices SET status = COALESCE(status, 'offline'), created_at = COALESCE(created_at, NOW()) WHERE status IS NULL OR created_at IS NULL",
   "UPDATE transactions SET created_at = COALESCE(created_at, NOW()), updated_at = COALESCE(updated_at, created_at, NOW()), status = COALESCE(status, 'diterima') WHERE created_at IS NULL OR updated_at IS NULL OR status IS NULL",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_code VARCHAR(6)",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_expires_at TIMESTAMP",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(128)",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMP",
 ];
 
 export async function ensureRuntimeSchema() {

@@ -1,7 +1,9 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import pool, { ensureRuntimeSchema, initDb } from "../db/client";
+import { sendOtpEmail } from "../utils/email";
 
 const router = Router();
 
@@ -199,6 +201,136 @@ router.delete("/account", async (req: Request, res: Response): Promise<void> => 
       return;
     }
     console.error(err);
+    res.status(500).json({ message: "Terjadi kesalahan server" });
+  }
+});
+
+// ── Forgot Password: Step 1 – kirim OTP ──────────────────────────────────────
+router.post("/forgot-password", async (req: Request, res: Response): Promise<void> => {
+  const { email } = req.body;
+  if (!email) {
+    res.status(400).json({ message: "Email wajib diisi" });
+    return;
+  }
+
+  try {
+    await ensureRuntimeSchema();
+    const result = await pool.query("SELECT id, name, email FROM users WHERE email = $1", [email.trim().toLowerCase()]);
+    if (result.rows.length === 0) {
+      // Jangan bocorkan info "email tidak terdaftar" — respons sama seperti sukses
+      res.json({ message: "Jika email terdaftar, kode OTP telah dikirim" });
+      return;
+    }
+
+    const user = result.rows[0];
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 menit
+
+    await pool.query(
+      "UPDATE users SET otp_code = $1, otp_expires_at = $2, reset_token = NULL, reset_token_expires_at = NULL WHERE id = $3",
+      [otp, expiresAt, user.id]
+    );
+
+    await sendOtpEmail(user.email, otp, user.name);
+
+    res.json({ message: "Jika email terdaftar, kode OTP telah dikirim" });
+  } catch (err) {
+    console.error("[forgot-password]", err);
+    res.status(500).json({ message: "Gagal mengirim email OTP. Pastikan konfigurasi email server sudah benar." });
+  }
+});
+
+// ── Forgot Password: Step 2 – verifikasi OTP ─────────────────────────────────
+router.post("/verify-otp", async (req: Request, res: Response): Promise<void> => {
+  const { email, otp } = req.body;
+  if (!email || !otp) {
+    res.status(400).json({ message: "Email dan kode OTP wajib diisi" });
+    return;
+  }
+
+  try {
+    const result = await pool.query(
+      "SELECT id, otp_code, otp_expires_at FROM users WHERE email = $1",
+      [email.trim().toLowerCase()]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(400).json({ message: "Kode OTP tidak valid atau sudah kadaluarsa" });
+      return;
+    }
+
+    const user = result.rows[0];
+
+    if (!user.otp_code || user.otp_code !== otp.trim()) {
+      res.status(400).json({ message: "Kode OTP salah" });
+      return;
+    }
+
+    if (!user.otp_expires_at || new Date(user.otp_expires_at) < new Date()) {
+      res.status(400).json({ message: "Kode OTP sudah kadaluarsa. Minta kode baru." });
+      return;
+    }
+
+    const resetToken = crypto.randomBytes(48).toString("hex");
+    const resetExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 menit
+
+    await pool.query(
+      "UPDATE users SET otp_code = NULL, otp_expires_at = NULL, reset_token = $1, reset_token_expires_at = $2 WHERE id = $3",
+      [resetToken, resetExpiresAt, user.id]
+    );
+
+    res.json({ resetToken });
+  } catch (err) {
+    console.error("[verify-otp]", err);
+    res.status(500).json({ message: "Terjadi kesalahan server" });
+  }
+});
+
+// ── Forgot Password: Step 3 – reset password ─────────────────────────────────
+router.post("/reset-password", async (req: Request, res: Response): Promise<void> => {
+  const { email, resetToken, newPassword } = req.body;
+  if (!email || !resetToken || !newPassword) {
+    res.status(400).json({ message: "Email, token reset, dan password baru wajib diisi" });
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    res.status(400).json({ message: "Password baru minimal 6 karakter" });
+    return;
+  }
+
+  try {
+    const result = await pool.query(
+      "SELECT id, reset_token, reset_token_expires_at FROM users WHERE email = $1",
+      [email.trim().toLowerCase()]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(400).json({ message: "Permintaan reset password tidak valid" });
+      return;
+    }
+
+    const user = result.rows[0];
+
+    if (!user.reset_token || user.reset_token !== resetToken) {
+      res.status(400).json({ message: "Token reset tidak valid" });
+      return;
+    }
+
+    if (!user.reset_token_expires_at || new Date(user.reset_token_expires_at) < new Date()) {
+      res.status(400).json({ message: "Token reset sudah kadaluarsa. Ulangi proses dari awal." });
+      return;
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await pool.query(
+      "UPDATE users SET password = $1, reset_token = NULL, reset_token_expires_at = NULL WHERE id = $2",
+      [hashedPassword, user.id]
+    );
+
+    res.json({ message: "Password berhasil diperbarui. Silakan login dengan password baru." });
+  } catch (err) {
+    console.error("[reset-password]", err);
     res.status(500).json({ message: "Terjadi kesalahan server" });
   }
 });

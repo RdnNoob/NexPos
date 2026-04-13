@@ -7,6 +7,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import com.nexpos.admin.ui.screens.account.AccountScreen
+import com.nexpos.admin.ui.screens.auth.ForgotPasswordScreen
 import com.nexpos.admin.ui.screens.auth.LoginScreen
 import com.nexpos.admin.ui.screens.auth.RegisterScreen
 import com.nexpos.admin.ui.screens.dashboard.DashboardScreen
@@ -29,6 +30,7 @@ sealed class AdminScreen(val route: String) {
     object OutletTransactions : AdminScreen("transactions/{outletId}") {
         fun createRoute(outletId: Int) = "transactions/$outletId"
     }
+    object ForgotPassword : AdminScreen("forgot_password")
 }
 
 @OptIn(ExperimentalAnimationApi::class)
@@ -73,7 +75,14 @@ fun AdminNavGraph() {
         composable(AdminScreen.Login.route) {
             LoginScreen(
                 onLoginSuccess = { navController.navigate(AdminScreen.Dashboard.route) { popUpTo(0) } },
-                onNavigateToRegister = { navController.navigate(AdminScreen.Register.route) }
+                onNavigateToRegister = { navController.navigate(AdminScreen.Register.route) },
+                onNavigateToForgotPassword = { navController.navigate(AdminScreen.ForgotPassword.route) }
+            )
+        }
+        composable(AdminScreen.ForgotPassword.route) {
+            ForgotPasswordScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onResetSuccess = { navController.navigate(AdminScreen.Login.route) { popUpTo(AdminScreen.Login.route) { inclusive = true } } }
             )
         }
         composable(AdminScreen.Register.route) {
