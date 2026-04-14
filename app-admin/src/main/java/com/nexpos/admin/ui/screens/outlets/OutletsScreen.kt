@@ -2,7 +2,7 @@ package com.nexpos.admin.ui.screens.outlets
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -155,7 +155,7 @@ fun OutletsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    items(state.outlets, key = { "outlet_${it.id}" }) { outlet ->
+                    itemsIndexed(state.outlets, key = { index, _ -> "outlet_$index" }) { _, outlet ->
                         val isDeleting = state.deletingOutletId == outlet.id
                         val activationCode: String = outlet.activationCode.orEmpty()
                         Card(modifier = Modifier.fillMaxWidth()) {

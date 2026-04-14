@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import pool, { ensureRuntimeSchema, initDb } from "../db/client";
+import pool, { initDb } from "../db/client";
 import { sendOtpEmail } from "../utils/email";
 
 const router = Router();
@@ -109,6 +109,8 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
       return;
     }
     const outlet = outletResult.rows[0];
+    const outletId = parseInt(String(outlet.id), 10);
+    const outletOwnerId = String(outlet.owner_id);
 
     const existingDevice = await pool.query(
       "SELECT * FROM devices WHERE device_id = $1",
@@ -117,8 +119,8 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
 
     if (existingDevice.rows.length === 0) {
       const deviceCountResult = await pool.query(
-        "SELECT COUNT(*) FROM devices WHERE owner_id::text = $1::text OR outlet_id = $2",
-        [String(outlet.owner_id), outlet.id]
+        "SELECT COUNT(*) FROM devices WHERE owner_id::text = $1::text OR outlet_id::text = $2::text",
+        [outletOwnerId, String(outletId)]
       );
       const deviceCount = parseInt(deviceCountResult.rows[0].count);
       if (deviceCount >= 5) {
@@ -131,24 +133,24 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
     if (existingDevice.rows.length > 0) {
       const updated = await pool.query(
         "UPDATE devices SET status = 'online', last_seen = NOW(), device_name = $1, owner_id = $2, outlet_id = $3 WHERE device_id = $4 RETURNING *",
-        [normalizedDeviceName, String(outlet.owner_id), outlet.id, normalizedDeviceId]
+        [normalizedDeviceName, outletOwnerId, outletId, normalizedDeviceId]
       );
       device = updated.rows[0];
     } else {
       const inserted = await pool.query(
         "INSERT INTO devices (owner_id, outlet_id, device_name, device_id, status, last_seen) VALUES ($1, $2, $3, $4, 'online', NOW()) RETURNING *",
-        [String(outlet.owner_id), outlet.id, normalizedDeviceName, normalizedDeviceId]
+        [outletOwnerId, outletId, normalizedDeviceName, normalizedDeviceId]
       );
       device = inserted.rows[0];
     }
 
-    const ownerResult = await pool.query("SELECT * FROM users WHERE id::text = $1::text", [String(outlet.owner_id)]);
+    const ownerResult = await pool.query("SELECT * FROM users WHERE id::text = $1::text", [outletOwnerId]);
     const owner = ownerResult.rows[0];
     const tokenPayload = {
-      userId: String(owner?.id ?? outlet.owner_id),
+      userId: String(owner?.id ?? outletOwnerId),
       email: owner?.email ?? "",
       deviceId: device.id,
-      outletId: outlet.id,
+      outletId: outletId,
     };
 
     const token = generateToken(tokenPayload);
@@ -156,9 +158,9 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
     res.json({
       token,
       outlet: {
-        id: outlet.id,
+        id: outletId,
         name: outlet.name,
-        ownerId: toClientId(outlet.owner_id),
+        ownerId: outletOwnerId,
         activationCode: outlet.activation_code,
       },
       device: {
@@ -224,7 +226,6 @@ router.post("/forgot-password", async (req: Request, res: Response): Promise<voi
   }
 
   try {
-    await ensureRuntimeSchema();
     const result = await pool.query("SELECT id, name, email FROM users WHERE email = $1", [email.trim().toLowerCase()]);
     if (result.rows.length === 0) {
       // Jangan bocorkan info "email tidak terdaftar" — respons sama seperti sukses

@@ -1,6 +1,6 @@
 import { Router, Response } from "express";
 import { nanoid } from "../utils/nanoid";
-import pool, { ensureRuntimeSchema } from "../db/client";
+import pool from "../db/client";
 import { authenticateToken, AuthRequest } from "../middleware/auth";
 
 const router = Router();
@@ -12,7 +12,6 @@ function safeInt(value: unknown): number {
 
 router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    await ensureRuntimeSchema();
     const result = await pool.query(
       "SELECT id, owner_id, name, activation_code, created_at FROM outlets WHERE owner_id::text = $1::text ORDER BY created_at DESC",
       [String(req.userId)]
@@ -40,8 +39,6 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response): Pro
   }
 
   try {
-    await ensureRuntimeSchema();
-
     const countResult = await pool.query(
       "SELECT COUNT(*) FROM outlets WHERE owner_id::text = $1::text",
       [String(req.userId)]
@@ -82,7 +79,6 @@ router.delete("/:id", authenticateToken, async (req: AuthRequest, res: Response)
   }
 
   try {
-    await ensureRuntimeSchema();
     const existing = await pool.query(
       "SELECT id FROM outlets WHERE id = $1 AND owner_id::text = $2::text",
       [outletId, String(req.userId)]
