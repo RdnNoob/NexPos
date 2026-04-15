@@ -79,7 +79,9 @@ const migrations = [
      END IF;
    END $$`,
   "ALTER TABLE devices ADD COLUMN IF NOT EXISTS outlet_id VARCHAR(255)",
+  "ALTER TABLE devices ADD COLUMN IF NOT EXISTS name VARCHAR(255)",
   "ALTER TABLE devices ADD COLUMN IF NOT EXISTS device_name VARCHAR(255)",
+  "UPDATE devices SET device_name = COALESCE(device_name, name), name = COALESCE(name, device_name, 'Unknown Device') WHERE device_name IS NULL OR name IS NULL",
   "ALTER TABLE devices ADD COLUMN IF NOT EXISTS device_id VARCHAR(255)",
   "ALTER TABLE devices ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'offline'",
   "ALTER TABLE devices ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP",
@@ -167,6 +169,7 @@ export async function initDb() {
         id SERIAL PRIMARY KEY,
         owner_id VARCHAR(255) NOT NULL,
         outlet_id VARCHAR(255),
+        name VARCHAR(255),
         device_name VARCHAR(255) NOT NULL,
         device_id VARCHAR(255) UNIQUE NOT NULL,
         status VARCHAR(20) DEFAULT 'offline',
