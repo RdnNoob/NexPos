@@ -239,11 +239,10 @@ router.post("/forgot-password", async (req: Request, res: Response): Promise<voi
       [otp, expiresAt, user.id]
     );
 
-    try {
-      await sendOtpEmail(user.email, otp, user.name);
-    } catch (emailErr: any) {
-      console.error("[forgot-password] Gagal mengirim email, OTP tetap tersimpan:", emailErr?.message);
-    }
+    // Kirim email di background — jangan block response ke client
+    sendOtpEmail(user.email, otp, user.name).catch((emailErr: any) => {
+      console.error("[forgot-password] Gagal mengirim email, OTP tetap tersimpan di DB:", emailErr?.message);
+    });
 
     res.json({ message: "Jika email terdaftar, kode OTP telah dikirim" });
   } catch (err: any) {
