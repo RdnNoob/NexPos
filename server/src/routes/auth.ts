@@ -134,8 +134,8 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
     if (existingDevice.rows.length > 0) {
       step.current = "update-device";
       const updated = await pool.query(
-        "UPDATE devices SET status = 'online', last_seen = NOW(), device_name = $1, owner_id = $2, outlet_id = $3 WHERE device_id = $4 RETURNING *",
-        [normalizedDeviceName, outletOwnerId, outletId, normalizedDeviceId]
+        "UPDATE devices SET status = 'online', last_seen = NOW(), device_name = $1, outlet_id = $2 WHERE device_id = $3 RETURNING *",
+        [normalizedDeviceName, outletId, normalizedDeviceId]
       );
       device = updated.rows[0];
       if (!device) {
@@ -146,8 +146,8 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
     } else {
       step.current = "insert-device";
       const inserted = await pool.query(
-        "INSERT INTO devices (owner_id, outlet_id, device_name, device_id, status, last_seen) VALUES ($1, $2, $3, $4, 'online', NOW()) RETURNING *",
-        [outletOwnerId, outletId, normalizedDeviceName, normalizedDeviceId]
+        "INSERT INTO devices (outlet_id, device_name, device_id, status, last_seen) VALUES ($1, $2, $3, 'online', NOW()) RETURNING *",
+        [outletId, normalizedDeviceName, normalizedDeviceId]
       );
       device = inserted.rows[0];
     }

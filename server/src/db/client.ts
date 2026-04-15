@@ -9,23 +9,9 @@ const pool = new Pool({
 });
 
 const migrations = [
-  // Paksa konversi owner_id dari UUID ke VARCHAR jika masih UUID (Railway legacy schema)
-  `DO $$ BEGIN
-     IF EXISTS (
-       SELECT 1 FROM information_schema.columns
-       WHERE table_name='devices' AND column_name='owner_id' AND data_type='uuid'
-     ) THEN
-       ALTER TABLE devices ALTER COLUMN owner_id TYPE VARCHAR(255) USING owner_id::text;
-     END IF;
-   END $$`,
-  `DO $$ BEGIN
-     IF EXISTS (
-       SELECT 1 FROM information_schema.columns
-       WHERE table_name='outlets' AND column_name='owner_id' AND data_type='uuid'
-     ) THEN
-       ALTER TABLE outlets ALTER COLUMN owner_id TYPE VARCHAR(255) USING owner_id::text;
-     END IF;
-   END $$`,
+  // Hapus NOT NULL di owner_id agar tidak crash jika tipe UUID (Railway legacy schema)
+  "ALTER TABLE devices ALTER COLUMN owner_id DROP NOT NULL",
+  "ALTER TABLE outlets ALTER COLUMN owner_id DROP NOT NULL",
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()",
   "ALTER TABLE outlets ADD COLUMN IF NOT EXISTS owner_id INTEGER REFERENCES users(id) ON DELETE CASCADE",
   `DO $$
