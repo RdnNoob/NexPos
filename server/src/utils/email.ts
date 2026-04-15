@@ -6,12 +6,16 @@ function createTransporter() {
   if (!user || !pass) {
     return null;
   }
+  // Gunakan host eksplisit port 587 (STARTTLS) karena Railway sering blokir port 465
   return nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false, // STARTTLS (bukan SSL langsung)
     auth: { user, pass },
-    connectionTimeout: 10_000,
-    greetingTimeout: 10_000,
-    socketTimeout: 15_000,
+    tls: { rejectUnauthorized: false },
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 20_000,
   });
 }
 
@@ -19,18 +23,12 @@ export async function sendOtpEmail(to: string, otp: string, name: string): Promi
   const transporter = createTransporter();
 
   if (!transporter) {
-    console.warn(
-      "[Email] GMAIL_USER atau GMAIL_APP_PASSWORD belum dikonfigurasi. OTP dikirim via console."
-    );
-    console.info(`[Email] ========================================`);
-    console.info(`[Email] OTP Reset Password untuk: ${to} (${name})`);
-    console.info(`[Email] Kode OTP: ${otp}`);
-    console.info(`[Email] ========================================`);
+    console.warn("[Email] GMAIL_USER atau GMAIL_APP_PASSWORD belum dikonfigurasi.");
     return;
   }
 
   const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error("Email timeout setelah 20 detik")), 20_000)
+    setTimeout(() => reject(new Error("Email timeout setelah 25 detik")), 25_000)
   );
 
   await Promise.race([
