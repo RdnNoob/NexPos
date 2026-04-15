@@ -92,11 +92,13 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
     return;
   }
 
+  const step = { current: "init" };
   try {
     const normalizedActivationCode = String(activationCode).trim().toUpperCase();
     const normalizedDeviceId = String(deviceId).trim();
     const normalizedDeviceName = String(deviceName).trim();
 
+    step.current = "query-outlet";
     const outletResult = await pool.query(
       "SELECT * FROM outlets WHERE UPPER(TRIM(activation_code)) = $1",
       [normalizedActivationCode]
@@ -109,15 +111,17 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
     const outletId = parseInt(String(outlet.id), 10);
     const outletOwnerId = String(outlet.owner_id);
 
+    step.current = "query-existing-device";
     const existingDevice = await pool.query(
       "SELECT * FROM devices WHERE device_id = $1",
       [normalizedDeviceId]
     );
 
     if (existingDevice.rows.length === 0) {
+      step.current = "count-devices";
       const deviceCountResult = await pool.query(
-        "SELECT COUNT(*) FROM devices WHERE owner_id::text = $1::text OR outlet_id::text = $2::text",
-        [outletOwnerId, String(outletId)]
+        "SELECT COUNT(*) FROM devices WHERE owner_id::text = $1::text OR outlet_id = $2",
+        [outletOwnerId, outletId]
       );
       const deviceCount = parseInt(deviceCountResult.rows[0].count);
       if (deviceCount >= 5) {
@@ -128,12 +132,19 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
 
     let device;
     if (existingDevice.rows.length > 0) {
+      step.current = "update-device";
       const updated = await pool.query(
         "UPDATE devices SET status = 'online', last_seen = NOW(), device_name = $1, owner_id = $2, outlet_id = $3 WHERE device_id = $4 RETURNING *",
         [normalizedDeviceName, outletOwnerId, outletId, normalizedDeviceId]
       );
       device = updated.rows[0];
+      if (!device) {
+        step.current = "update-device-fallback";
+        const fallback = await pool.query("SELECT * FROM devices WHERE device_id = $1", [normalizedDeviceId]);
+        device = fallback.rows[0];
+      }
     } else {
+      step.current = "insert-device";
       const inserted = await pool.query(
         "INSERT INTO devices (owner_id, outlet_id, device_name, device_id, status, last_seen) VALUES ($1, $2, $3, $4, 'online', NOW()) RETURNING *",
         [outletOwnerId, outletId, normalizedDeviceName, normalizedDeviceId]
@@ -141,8 +152,17 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
       device = inserted.rows[0];
     }
 
+    if (!device) {
+      console.error("[login-device] device undefined setelah step:", step.current);
+      res.status(500).json({ message: "Terjadi kesalahan server, coba lagi nanti" });
+      return;
+    }
+
+    step.current = "query-owner";
     const ownerResult = await pool.query("SELECT * FROM users WHERE id::text = $1::text", [outletOwnerId]);
     const owner = ownerResult.rows[0];
+
+    step.current = "generate-token";
     const tokenPayload = {
       userId: String(owner?.id ?? outletOwnerId),
       email: owner?.email ?? "",
@@ -169,7 +189,7 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
       },
     });
   } catch (err: any) {
-    console.error("[login-device]", err?.message ?? err);
+    console.error(`[login-device:${step.current}] ERROR:`, err?.message ?? err);
     res.status(500).json({ message: "Terjadi kesalahan server, coba lagi nanti" });
   }
 });
