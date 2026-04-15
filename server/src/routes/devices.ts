@@ -22,7 +22,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Prom
     res.json({
       devices: result.rows.map(d => ({
         id: d.id,
-        deviceName: d.device_name,
+        deviceName: d.device_name ?? d.name,
         deviceId: d.device_id,
         status: d.status,
         outletId: safeInt(d.outlet_client_id ?? d.outlet_id),
