@@ -16,6 +16,8 @@ function createTransporter() {
     connectionTimeout: 15_000,
     greetingTimeout: 15_000,
     socketTimeout: 20_000,
+    logger: process.env.NODE_ENV !== "production",
+    debug: process.env.NODE_ENV !== "production",
   });
 }
 
@@ -31,7 +33,7 @@ export async function sendOtpEmail(to: string, otp: string, name: string): Promi
     setTimeout(() => reject(new Error("Email timeout setelah 25 detik")), 25_000)
   );
 
-  await Promise.race([
+  const info = await Promise.race([
     transporter.sendMail({
       from: `"NexPos Admin" <${process.env.GMAIL_USER}>`,
       to,
@@ -53,4 +55,12 @@ export async function sendOtpEmail(to: string, otp: string, name: string): Promi
     }),
     timeoutPromise,
   ]);
+
+  console.info("[Email] OTP terkirim:", {
+    to,
+    messageId: info.messageId,
+    accepted: info.accepted,
+    rejected: info.rejected,
+    response: info.response,
+  });
 }
