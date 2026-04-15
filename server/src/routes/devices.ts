@@ -4,12 +4,17 @@ import { authenticateToken, AuthRequest } from "../middleware/auth";
 
 const router = Router();
 
+function safeInt(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.floor(n) : 0;
+}
+
 router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const result = await pool.query(
-      `SELECT d.*, o.name as outlet_name 
+      `SELECT d.*, o.client_id as outlet_client_id, o.name as outlet_name 
        FROM devices d 
-       LEFT JOIN outlets o ON d.outlet_id = o.id 
+       LEFT JOIN outlets o ON d.outlet_id::text = o.id::text OR d.outlet_id::text = o.client_id::text
        WHERE d.owner_id::text = $1::text 
        ORDER BY d.last_seen DESC NULLS LAST`,
       [req.userId]
@@ -20,7 +25,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Prom
         deviceName: d.device_name,
         deviceId: d.device_id,
         status: d.status,
-        outletId: d.outlet_id,
+        outletId: safeInt(d.outlet_client_id ?? d.outlet_id),
         outletName: d.outlet_name,
         lastSeen: d.last_seen,
       })),

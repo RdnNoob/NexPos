@@ -6,6 +6,11 @@ const router = Router();
 
 const VALID_STATUSES = ["diterima", "dicuci", "disetrika", "selesai"];
 
+function safeInt(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.floor(n) : 0;
+}
+
 router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
   const { outletId } = req.query;
 
@@ -13,29 +18,29 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Prom
     let result;
     if (outletId) {
       result = await pool.query(
-        `SELECT t.*, o.name as outlet_name
+        `SELECT t.*, o.client_id as outlet_client_id, o.name as outlet_name
          FROM transactions t
-         LEFT JOIN outlets o ON t.outlet_id = o.id
-         WHERE t.outlet_id::text = $1::text
+         LEFT JOIN outlets o ON t.outlet_id::text = o.id::text OR t.outlet_id::text = o.client_id::text
+         WHERE t.outlet_id::text = $1::text OR o.client_id::text = $1::text
          ORDER BY t.created_at DESC`,
         [outletId]
       );
     } else if (req.outletId) {
       // Kasir: hanya lihat transaksi outlet sendiri
       result = await pool.query(
-        `SELECT t.*, o.name as outlet_name
+        `SELECT t.*, o.client_id as outlet_client_id, o.name as outlet_name
          FROM transactions t
-         LEFT JOIN outlets o ON t.outlet_id = o.id
-         WHERE t.outlet_id::text = $1::text
+         LEFT JOIN outlets o ON t.outlet_id::text = o.id::text OR t.outlet_id::text = o.client_id::text
+         WHERE t.outlet_id::text = $1::text OR o.client_id::text = $1::text
          ORDER BY t.created_at DESC`,
         [req.outletId]
       );
     } else {
       // Admin: lihat semua transaksi miliknya
       result = await pool.query(
-        `SELECT t.*, o.name as outlet_name
+        `SELECT t.*, o.client_id as outlet_client_id, o.name as outlet_name
          FROM transactions t
-         LEFT JOIN outlets o ON t.outlet_id = o.id
+         LEFT JOIN outlets o ON t.outlet_id::text = o.id::text OR t.outlet_id::text = o.client_id::text
          WHERE o.owner_id::text = $1::text
          ORDER BY t.created_at DESC`,
         [req.userId]
@@ -45,7 +50,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Prom
     res.json({
       transactions: result.rows.map((t) => ({
         id: t.id,
-        outletId: t.outlet_id,
+        outletId: safeInt(t.outlet_client_id ?? t.outlet_id),
         customer: t.customer,
         service: t.service,
         amount: parseFloat(t.amount),
@@ -82,30 +87,36 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response): Pro
   }
 
   try {
+    const outletResult = await pool.query(
+      "SELECT id, client_id, name FROM outlets WHERE client_id::text = $1::text OR id::text = $1::text",
+      [outletId]
+    );
+    if (outletResult.rows.length === 0) {
+      res.status(404).json({ message: "Outlet tidak ditemukan" });
+      return;
+    }
+    const outlet = outletResult.rows[0];
+    const outletDbId = String(outlet.id);
+    const outletClientId = safeInt(outlet.client_id ?? outlet.id);
+
     const result = await pool.query(
       `INSERT INTO transactions (outlet_id, customer, service, amount, status)
        VALUES ($1, $2, $3, $4, 'diterima')
        RETURNING *`,
-      [outletId, customer.trim(), service.trim(), amountNum]
+      [outletDbId, customer.trim(), service.trim(), amountNum]
     );
     const t = result.rows[0];
 
-    const outletResult = await pool.query(
-      "SELECT name FROM outlets WHERE id = $1",
-      [outletId]
-    );
-    const outletName = outletResult.rows[0]?.name ?? null;
-
     res.status(201).json({
       id: t.id,
-      outletId: t.outlet_id,
+      outletId: outletClientId,
       customer: t.customer,
       service: t.service,
       amount: parseFloat(t.amount),
       status: t.status,
       createdAt: t.created_at,
       updatedAt: t.updated_at,
-      outletName,
+      outletName: outlet.name ?? null,
     });
   } catch (err) {
     console.error(err);
@@ -133,9 +144,9 @@ router.put("/status", authenticateToken, async (req: AuthRequest, res: Response)
       `UPDATE transactions t SET status = $1, updated_at = NOW()
        FROM outlets o
        WHERE t.id = $2
-         AND t.outlet_id = o.id
-         AND (o.owner_id::text = $3::text OR t.outlet_id::text = $4::text)
-       RETURNING t.*, o.name as outlet_name`,
+         AND (t.outlet_id::text = o.id::text OR t.outlet_id::text = o.client_id::text)
+         AND (o.owner_id::text = $3::text OR o.client_id::text = $4::text OR t.outlet_id::text = $4::text)
+       RETURNING t.*, o.client_id as outlet_client_id, o.name as outlet_name`,
       [status.toLowerCase(), transactionId, req.userId, req.outletId ?? null]
     );
 
@@ -147,7 +158,7 @@ router.put("/status", authenticateToken, async (req: AuthRequest, res: Response)
     const t = result.rows[0];
     res.json({
       id: t.id,
-      outletId: t.outlet_id,
+      outletId: safeInt(t.outlet_client_id ?? t.outlet_id),
       customer: t.customer,
       service: t.service,
       amount: parseFloat(t.amount),

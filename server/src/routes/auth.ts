@@ -20,6 +20,11 @@ function toClientId(value: unknown): unknown {
     : value;
 }
 
+function toRequiredClientId(value: unknown): number {
+  const numberValue = Number(value);
+  return Number.isSafeInteger(numberValue) ? numberValue : 0;
+}
+
 router.post("/register", async (req: Request, res: Response): Promise<void> => {
   const { email, password, name } = req.body;
   if (!email || !password || !name) {
@@ -108,7 +113,8 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
       return;
     }
     const outlet = outletResult.rows[0];
-    const outletId = parseInt(String(outlet.id), 10);
+    const outletDbId = String(outlet.id);
+    const outletClientId = toRequiredClientId(outlet.client_id ?? outlet.id);
     const outletOwnerId = String(outlet.owner_id);
 
     step.current = "query-existing-device";
@@ -120,8 +126,8 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
     if (existingDevice.rows.length === 0) {
       step.current = "count-devices";
       const deviceCountResult = await pool.query(
-        "SELECT COUNT(*) FROM devices WHERE outlet_id = $1",
-        [outletId]
+        "SELECT COUNT(*) FROM devices WHERE outlet_id::text = $1::text OR outlet_id::text = $2::text",
+        [outletDbId, String(outletClientId)]
       );
       const deviceCount = parseInt(deviceCountResult.rows[0].count);
       if (deviceCount >= 5) {
@@ -135,7 +141,7 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
       step.current = "update-device";
       const updated = await pool.query(
         "UPDATE devices SET status = 'online', last_seen = NOW(), device_name = $1, outlet_id = $2, owner_id = $3 WHERE device_id = $4 RETURNING *",
-        [normalizedDeviceName, outletId, outletOwnerId, normalizedDeviceId]
+        [normalizedDeviceName, outletDbId, outletOwnerId, normalizedDeviceId]
       );
       device = updated.rows[0];
       if (!device) {
@@ -147,7 +153,7 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
       step.current = "insert-device";
       const inserted = await pool.query(
         "INSERT INTO devices (owner_id, outlet_id, device_name, device_id, status, last_seen) VALUES ($1, $2, $3, $4, 'online', NOW()) RETURNING *",
-        [outletOwnerId, outletId, normalizedDeviceName, normalizedDeviceId]
+        [outletOwnerId, outletDbId, normalizedDeviceName, normalizedDeviceId]
       );
       device = inserted.rows[0];
     }
@@ -167,7 +173,7 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
       userId: String(owner?.id ?? outletOwnerId),
       email: owner?.email ?? "",
       deviceId: device.id,
-      outletId: outletId,
+      outletId: outletClientId,
     };
 
     const token = generateToken(tokenPayload);
@@ -175,7 +181,7 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
     res.json({
       token,
       outlet: {
-        id: outletId,
+        id: outletClientId,
         name: outlet.name,
         ownerId: outletOwnerId,
         activationCode: outlet.activation_code,
@@ -185,7 +191,7 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
         deviceName: device.device_name,
         deviceId: device.device_id,
         status: device.status,
-        outletId: device.outlet_id,
+        outletId: outletClientId,
       },
     });
   } catch (err: any) {

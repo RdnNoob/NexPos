@@ -28,6 +28,11 @@ const migrations = [
      END LOOP;
    END $$`,
   "ALTER TABLE outlets ALTER COLUMN owner_id TYPE VARCHAR(255) USING owner_id::text",
+  "CREATE SEQUENCE IF NOT EXISTS outlets_client_id_seq",
+  "ALTER TABLE outlets ADD COLUMN IF NOT EXISTS client_id INTEGER",
+  "UPDATE outlets SET client_id = nextval('outlets_client_id_seq') WHERE client_id IS NULL",
+  "SELECT setval('outlets_client_id_seq', GREATEST((SELECT COALESCE(MAX(client_id), 0) FROM outlets), 1), true)",
+  "ALTER TABLE outlets ALTER COLUMN client_id SET DEFAULT nextval('outlets_client_id_seq')",
   "ALTER TABLE outlets ADD COLUMN IF NOT EXISTS activation_code VARCHAR(50)",
   "ALTER TABLE outlets ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()",
   "ALTER TABLE devices ADD COLUMN IF NOT EXISTS owner_id INTEGER REFERENCES users(id) ON DELETE CASCADE",
@@ -55,7 +60,7 @@ const migrations = [
        AND column_name = 'outlet_id'
        AND table_schema = current_schema();
 
-     IF outlet_id_type IS NOT NULL AND outlet_id_type <> 'integer' THEN
+     IF outlet_id_type IS NOT NULL THEN
        FOR constraint_name IN
          SELECT tc.constraint_name
          FROM information_schema.table_constraints tc
@@ -69,12 +74,11 @@ const migrations = [
          EXECUTE format('ALTER TABLE devices DROP CONSTRAINT IF EXISTS %I', constraint_name);
        END LOOP;
 
-       ALTER TABLE devices DROP COLUMN outlet_id;
-       ALTER TABLE devices ADD COLUMN outlet_id INTEGER;
-       RAISE NOTICE 'devices.outlet_id legacy type % diganti menjadi INTEGER', outlet_id_type;
+       ALTER TABLE devices ALTER COLUMN outlet_id TYPE VARCHAR(255) USING outlet_id::text;
+       RAISE NOTICE 'devices.outlet_id type % dinormalisasi menjadi VARCHAR', outlet_id_type;
      END IF;
    END $$`,
-  "ALTER TABLE devices ADD COLUMN IF NOT EXISTS outlet_id INTEGER REFERENCES outlets(id) ON DELETE CASCADE",
+  "ALTER TABLE devices ADD COLUMN IF NOT EXISTS outlet_id VARCHAR(255)",
   "ALTER TABLE devices ADD COLUMN IF NOT EXISTS device_name VARCHAR(255)",
   "ALTER TABLE devices ADD COLUMN IF NOT EXISTS device_id VARCHAR(255)",
   "ALTER TABLE devices ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'offline'",
@@ -91,7 +95,7 @@ const migrations = [
        AND column_name = 'outlet_id'
        AND table_schema = current_schema();
 
-     IF outlet_id_type IS NOT NULL AND outlet_id_type <> 'integer' THEN
+     IF outlet_id_type IS NOT NULL THEN
        FOR constraint_name IN
          SELECT tc.constraint_name
          FROM information_schema.table_constraints tc
@@ -105,12 +109,13 @@ const migrations = [
          EXECUTE format('ALTER TABLE transactions DROP CONSTRAINT IF EXISTS %I', constraint_name);
        END LOOP;
 
-       ALTER TABLE transactions DROP COLUMN outlet_id;
-       ALTER TABLE transactions ADD COLUMN outlet_id INTEGER;
-       RAISE NOTICE 'transactions.outlet_id legacy type % diganti menjadi INTEGER', outlet_id_type;
+       ALTER TABLE transactions ALTER COLUMN outlet_id TYPE VARCHAR(255) USING outlet_id::text;
+       RAISE NOTICE 'transactions.outlet_id type % dinormalisasi menjadi VARCHAR', outlet_id_type;
      END IF;
    END $$`,
-  "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS outlet_id INTEGER REFERENCES outlets(id) ON DELETE CASCADE",
+  "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS outlet_id VARCHAR(255)",
+  "UPDATE devices d SET outlet_id = o.id::text FROM outlets o WHERE d.outlet_id::text = o.client_id::text",
+  "UPDATE transactions t SET outlet_id = o.id::text FROM outlets o WHERE t.outlet_id::text = o.client_id::text",
   "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer VARCHAR(255)",
   "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS service VARCHAR(255)",
   "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS amount DECIMAL(10,2)",
@@ -151,6 +156,7 @@ export async function initDb() {
 
       CREATE TABLE IF NOT EXISTS outlets (
         id SERIAL PRIMARY KEY,
+        client_id SERIAL UNIQUE,
         owner_id VARCHAR(255) NOT NULL,
         name VARCHAR(255) NOT NULL,
         activation_code VARCHAR(50) UNIQUE NOT NULL,
@@ -160,7 +166,7 @@ export async function initDb() {
       CREATE TABLE IF NOT EXISTS devices (
         id SERIAL PRIMARY KEY,
         owner_id VARCHAR(255) NOT NULL,
-        outlet_id INTEGER REFERENCES outlets(id) ON DELETE CASCADE,
+        outlet_id VARCHAR(255),
         device_name VARCHAR(255) NOT NULL,
         device_id VARCHAR(255) UNIQUE NOT NULL,
         status VARCHAR(20) DEFAULT 'offline',
@@ -171,7 +177,7 @@ export async function initDb() {
 
       CREATE TABLE IF NOT EXISTS transactions (
         id SERIAL PRIMARY KEY,
-        outlet_id INTEGER REFERENCES outlets(id) ON DELETE CASCADE,
+        outlet_id VARCHAR(255),
         customer VARCHAR(255) NOT NULL,
         service VARCHAR(255) NOT NULL,
         amount DECIMAL(10,2) NOT NULL,
