@@ -17,10 +17,13 @@ export async function sendOtpEmail(to: string, otp: string, name: string): Promi
 
   if (!transporter) {
     console.warn(
-      "[Email] GMAIL_USER atau GMAIL_APP_PASSWORD belum dikonfigurasi di environment variable."
+      "[Email] GMAIL_USER atau GMAIL_APP_PASSWORD belum dikonfigurasi. OTP dikirim via console."
     );
-    console.info(`[Email] OTP untuk ${to} (${name}): ${otp}`);
-    throw new Error("Konfigurasi email server belum lengkap. Hubungi administrator.");
+    console.info(`[Email] ========================================`);
+    console.info(`[Email] OTP Reset Password untuk: ${to} (${name})`);
+    console.info(`[Email] Kode OTP: ${otp}`);
+    console.info(`[Email] ========================================`);
+    return;
   }
 
   await transporter.sendMail({
