@@ -2,12 +2,10 @@ import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import pool, { initDb } from "../db/client";
+import pool from "../db/client";
 import { sendOtpEmail } from "../utils/email";
 
 const router = Router();
-
-initDb().catch(console.error);
 
 function generateToken(payload: object): string {
   const secret = process.env.JWT_SECRET || "nexpos_secret";
@@ -95,7 +93,6 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
   }
 
   try {
-    await initDb();
     const normalizedActivationCode = String(activationCode).trim().toUpperCase();
     const normalizedDeviceId = String(deviceId).trim();
     const normalizedDeviceName = String(deviceName).trim();
