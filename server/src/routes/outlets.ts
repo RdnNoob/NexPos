@@ -13,12 +13,12 @@ function safeInt(value: unknown): number {
 router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const result = await pool.query(
-      "SELECT id, owner_id, name, activation_code, created_at FROM outlets WHERE owner_id::text = $1::text ORDER BY created_at DESC",
+      "SELECT id, client_id, owner_id, name, activation_code, created_at FROM outlets WHERE owner_id::text = $1::text ORDER BY created_at DESC",
       [String(req.userId)]
     );
     res.json({
       outlets: result.rows.map((r) => ({
-        id: safeInt(r.id),
+        id: safeInt(r.client_id ?? r.id),
         ownerId: String(r.owner_id),
         name: r.name as string,
         activationCode: r.activation_code as string,
@@ -58,7 +58,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response): Pro
 
     res.status(201).json({
       outlet: {
-        id: safeInt(outlet.id),
+        id: safeInt(outlet.client_id ?? outlet.id),
         ownerId: String(outlet.owner_id),
         name: outlet.name as string,
         activationCode: outlet.activation_code as string,
@@ -80,7 +80,7 @@ router.delete("/:id", authenticateToken, async (req: AuthRequest, res: Response)
 
   try {
     const existing = await pool.query(
-      "SELECT id FROM outlets WHERE id = $1 AND owner_id::text = $2::text",
+      "SELECT id, client_id FROM outlets WHERE client_id::text = $1::text AND owner_id::text = $2::text",
       [outletId, String(req.userId)]
     );
     if (existing.rows.length === 0) {
@@ -88,12 +88,13 @@ router.delete("/:id", authenticateToken, async (req: AuthRequest, res: Response)
       return;
     }
 
+    const outletDbId = String(existing.rows[0].id);
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
-      await client.query("DELETE FROM transactions WHERE outlet_id = $1", [outletId]);
-      await client.query("UPDATE devices SET outlet_id = NULL, status = 'offline', refresh_token = NULL WHERE outlet_id = $1", [outletId]);
-      await client.query("DELETE FROM outlets WHERE id = $1", [outletId]);
+      await client.query("DELETE FROM transactions WHERE outlet_id::text = $1::text OR outlet_id::text = $2::text", [outletDbId, String(outletId)]);
+      await client.query("UPDATE devices SET outlet_id = NULL, status = 'offline', refresh_token = NULL WHERE outlet_id::text = $1::text OR outlet_id::text = $2::text", [outletDbId, String(outletId)]);
+      await client.query("DELETE FROM outlets WHERE id::text = $1::text", [outletDbId]);
       await client.query("COMMIT");
     } catch (err) {
       await client.query("ROLLBACK");
