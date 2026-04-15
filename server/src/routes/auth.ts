@@ -259,9 +259,18 @@ router.post("/forgot-password", async (req: Request, res: Response): Promise<voi
       [otp, expiresAt, user.id]
     );
 
+    // Selalu log OTP ke console (Railway logs) agar bisa dicek jika email tidak masuk
+    console.info("[forgot-password] ========================================");
+    console.info(`[forgot-password] OTP untuk: ${user.email} (${user.name})`);
+    console.info(`[forgot-password] Kode OTP: ${otp}`);
+    console.info(`[forgot-password] Berlaku sampai: ${expiresAt.toISOString()}`);
+    console.info("[forgot-password] ========================================");
+
     // Kirim email di background — jangan block response ke client
     sendOtpEmail(user.email, otp, user.name).catch((emailErr: any) => {
-      console.error("[forgot-password] Gagal mengirim email, OTP tetap tersimpan di DB:", emailErr?.message);
+      console.error("[forgot-password] Gagal kirim email:", emailErr?.message || emailErr);
+      console.error("[forgot-password] GMAIL_USER set?", !!process.env.GMAIL_USER);
+      console.error("[forgot-password] GMAIL_APP_PASSWORD set?", !!process.env.GMAIL_APP_PASSWORD);
     });
 
     res.json({ message: "Jika email terdaftar, kode OTP telah dikirim" });
