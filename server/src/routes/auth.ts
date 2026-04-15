@@ -120,8 +120,8 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
     if (existingDevice.rows.length === 0) {
       step.current = "count-devices";
       const deviceCountResult = await pool.query(
-        "SELECT COUNT(*) FROM devices WHERE owner_id::text = $1::text OR outlet_id = $2",
-        [outletOwnerId, outletId]
+        "SELECT COUNT(*) FROM devices WHERE outlet_id = $1",
+        [outletId]
       );
       const deviceCount = parseInt(deviceCountResult.rows[0].count);
       if (deviceCount >= 5) {
