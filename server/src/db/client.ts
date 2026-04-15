@@ -45,6 +45,35 @@ const migrations = [
      END LOOP;
    END $$`,
   "ALTER TABLE devices ALTER COLUMN owner_id TYPE VARCHAR(255) USING owner_id::text",
+  `DO $$
+   DECLARE outlet_id_type text;
+   DECLARE constraint_name text;
+   BEGIN
+     SELECT data_type INTO outlet_id_type
+     FROM information_schema.columns
+     WHERE table_name = 'devices'
+       AND column_name = 'outlet_id'
+       AND table_schema = current_schema();
+
+     IF outlet_id_type IS NOT NULL AND outlet_id_type <> 'integer' THEN
+       FOR constraint_name IN
+         SELECT tc.constraint_name
+         FROM information_schema.table_constraints tc
+         JOIN information_schema.key_column_usage kcu
+           ON tc.constraint_name = kcu.constraint_name
+          AND tc.table_schema = kcu.table_schema
+         WHERE tc.table_name = 'devices'
+           AND kcu.column_name = 'outlet_id'
+           AND tc.table_schema = current_schema()
+       LOOP
+         EXECUTE format('ALTER TABLE devices DROP CONSTRAINT IF EXISTS %I', constraint_name);
+       END LOOP;
+
+       ALTER TABLE devices DROP COLUMN outlet_id;
+       ALTER TABLE devices ADD COLUMN outlet_id INTEGER;
+       RAISE NOTICE 'devices.outlet_id legacy type % diganti menjadi INTEGER', outlet_id_type;
+     END IF;
+   END $$`,
   "ALTER TABLE devices ADD COLUMN IF NOT EXISTS outlet_id INTEGER REFERENCES outlets(id) ON DELETE CASCADE",
   "ALTER TABLE devices ADD COLUMN IF NOT EXISTS device_name VARCHAR(255)",
   "ALTER TABLE devices ADD COLUMN IF NOT EXISTS device_id VARCHAR(255)",
@@ -52,6 +81,35 @@ const migrations = [
   "ALTER TABLE devices ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP",
   "ALTER TABLE devices ADD COLUMN IF NOT EXISTS refresh_token TEXT",
   "ALTER TABLE devices ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()",
+  `DO $$
+   DECLARE outlet_id_type text;
+   DECLARE constraint_name text;
+   BEGIN
+     SELECT data_type INTO outlet_id_type
+     FROM information_schema.columns
+     WHERE table_name = 'transactions'
+       AND column_name = 'outlet_id'
+       AND table_schema = current_schema();
+
+     IF outlet_id_type IS NOT NULL AND outlet_id_type <> 'integer' THEN
+       FOR constraint_name IN
+         SELECT tc.constraint_name
+         FROM information_schema.table_constraints tc
+         JOIN information_schema.key_column_usage kcu
+           ON tc.constraint_name = kcu.constraint_name
+          AND tc.table_schema = kcu.table_schema
+         WHERE tc.table_name = 'transactions'
+           AND kcu.column_name = 'outlet_id'
+           AND tc.table_schema = current_schema()
+       LOOP
+         EXECUTE format('ALTER TABLE transactions DROP CONSTRAINT IF EXISTS %I', constraint_name);
+       END LOOP;
+
+       ALTER TABLE transactions DROP COLUMN outlet_id;
+       ALTER TABLE transactions ADD COLUMN outlet_id INTEGER;
+       RAISE NOTICE 'transactions.outlet_id legacy type % diganti menjadi INTEGER', outlet_id_type;
+     END IF;
+   END $$`,
   "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS outlet_id INTEGER REFERENCES outlets(id) ON DELETE CASCADE",
   "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer VARCHAR(255)",
   "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS service VARCHAR(255)",
