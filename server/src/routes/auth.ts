@@ -156,8 +156,8 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
     } else {
       step.current = "insert-device";
       const inserted = await pool.query(
-        "INSERT INTO devices (owner_id, outlet_id, name, device_name, device_id, status, last_seen) VALUES ($1::text, $2::text, $3::text, $4::text, $5::text, 'online', NOW()) RETURNING *",
-        [outletOwnerId, outletDbId, normalizedDeviceName, normalizedDeviceName, normalizedDeviceId]
+        "INSERT INTO devices (owner_id, outlet_id, name, device_name, device_id, activation_code, status, last_seen) VALUES ($1::text, $2::text, $3::text, $4::text, $5::text, $6::text, 'online', NOW()) RETURNING *",
+        [outletOwnerId, outletDbId, normalizedDeviceName, normalizedDeviceName, normalizedDeviceId, normalizedActivationCode]
       );
       device = inserted.rows[0];
     }
