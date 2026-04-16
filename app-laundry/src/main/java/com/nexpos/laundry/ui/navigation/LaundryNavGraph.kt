@@ -8,6 +8,8 @@ import androidx.navigation.compose.*
 import com.nexpos.laundry.ui.screens.account.AccountInfoScreen
 import com.nexpos.laundry.ui.screens.auth.LoginDeviceScreen
 import com.nexpos.laundry.ui.screens.home.HomeScreen
+import com.nexpos.laundry.ui.screens.master.CustomersScreen
+import com.nexpos.laundry.ui.screens.master.ServicesScreen
 import com.nexpos.laundry.ui.screens.splash.SplashScreen
 import com.nexpos.laundry.ui.screens.transaction.CreateTransactionScreen
 import com.nexpos.laundry.ui.screens.transaction.TransactionListScreen
@@ -20,6 +22,8 @@ sealed class LaundryScreen(val route: String) {
     object AccountInfo : LaundryScreen("account_info")
     object CreateTransaction : LaundryScreen("create_transaction")
     object TransactionList : LaundryScreen("transaction_list")
+    object Services : LaundryScreen("services")
+    object Customers : LaundryScreen("customers")
 }
 
 @OptIn(ExperimentalAnimationApi::class)
@@ -81,6 +85,8 @@ fun LaundryNavGraph() {
             HomeScreen(
                 onNavigateToCreate = { navController.navigate(LaundryScreen.CreateTransaction.route) },
                 onNavigateToList = { navController.navigate(LaundryScreen.TransactionList.route) },
+                onNavigateToServices = { navController.navigate(LaundryScreen.Services.route) },
+                onNavigateToCustomers = { navController.navigate(LaundryScreen.Customers.route) },
                 onNavigateToAccount = { navController.navigate(LaundryScreen.AccountInfo.route) },
                 onLogout = { navController.navigate(LaundryScreen.Login.route) { popUpTo(0) } },
                 heartbeatViewModel = heartbeatViewModel
@@ -97,6 +103,12 @@ fun LaundryNavGraph() {
         }
         composable(LaundryScreen.TransactionList.route) {
             TransactionListScreen(onNavigateBack = { navController.popBackStack() })
+        }
+        composable(LaundryScreen.Services.route) {
+            ServicesScreen(onNavigateBack = { navController.popBackStack() })
+        }
+        composable(LaundryScreen.Customers.route) {
+            CustomersScreen(onNavigateBack = { navController.popBackStack() })
         }
     }
 }
