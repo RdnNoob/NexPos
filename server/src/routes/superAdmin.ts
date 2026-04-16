@@ -188,11 +188,11 @@ router.post("/notifications", authenticateSuperAdmin, async (req: SuperAdminRequ
     return;
   }
   try {
-    const result = await pool.query(
-      "INSERT INTO notifications (owner_id, title, message, type) VALUES ($1, $2, $3, $4) RETURNING *",
+    await pool.query(
+      "INSERT INTO notifications (owner_id, title, message, type) VALUES ($1, $2, $3, $4)",
       [String(ownerId), String(title).trim(), String(message).trim(), type || "info"]
     );
-    res.status(201).json({ notification: result.rows[0] });
+    res.status(201).json({ message: "Notifikasi berhasil dibuat" });
   } catch (err) {
     console.error("[super-admin notification]", err);
     res.status(500).json({ message: "Terjadi kesalahan server" });
