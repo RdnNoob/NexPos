@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
@@ -23,6 +24,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.net.Uri
 import com.nexpos.admin.ui.viewmodel.ForgotPasswordStep
 import com.nexpos.admin.ui.viewmodel.ForgotPasswordViewModel
 import com.nexpos.core.ui.components.NexPosButton
@@ -41,6 +43,18 @@ fun ForgotPasswordScreen(
     var otp by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    val uriHandler = LocalUriHandler.current
+
+    fun openEmailCs(targetEmail: String) {
+        val subject = Uri.encode("Permintaan OTP Reset Password NexPos")
+        val body = Uri.encode("Halo Customer Service NexPos, saya ingin meminta kode OTP reset password untuk email: ${targetEmail.trim().lowercase()}")
+        uriHandler.openUri("mailto:raden.muhammad.ichsan@gmail.com?subject=$subject&body=$body")
+    }
+
+    fun openWhatsAppCs(targetEmail: String) {
+        val text = Uri.encode("Halo Customer Service NexPos, saya ingin meminta kode OTP reset password untuk email: ${targetEmail.trim().lowercase()}")
+        uriHandler.openUri("https://wa.me/6289606056767?text=$text")
+    }
 
     // Navigate to login once done
     LaunchedEffect(state.step) {
@@ -83,7 +97,9 @@ fun ForgotPasswordScreen(
                     onEmailChange = { email = it; viewModel.clearError() },
                     isLoading = state.isLoading,
                     error = state.error,
-                    onSendOtp = { viewModel.sendOtp(email) }
+                    onSendOtp = { viewModel.sendOtp(email) },
+                    onContactEmail = { openEmailCs(email) },
+                    onContactWhatsApp = { openWhatsAppCs(email) }
                 )
 
                 ForgotPasswordStep.OTP -> OtpStep(
@@ -96,7 +112,9 @@ fun ForgotPasswordScreen(
                     resendCountdown = state.resendCountdown,
                     onVerifyOtp = { viewModel.verifyOtp(otp) },
                     onResendOtp = { viewModel.resendOtp() },
-                    onClearSuccess = { viewModel.clearSuccessMessage() }
+                    onClearSuccess = { viewModel.clearSuccessMessage() },
+                    onContactEmail = { openEmailCs(state.email) },
+                    onContactWhatsApp = { openWhatsAppCs(state.email) }
                 )
 
                 ForgotPasswordStep.NEW_PASSWORD -> NewPasswordStep(
@@ -122,7 +140,7 @@ fun ForgotPasswordScreen(
 
 @Composable
 private fun StepIndicator(currentStep: ForgotPasswordStep) {
-    val steps = listOf("Email", "Verifikasi OTP", "Password Baru")
+    val steps = listOf("Hubungi CS", "Verifikasi OTP", "Password Baru")
     val currentIndex = when (currentStep) {
         ForgotPasswordStep.EMAIL -> 0
         ForgotPasswordStep.OTP -> 1
@@ -203,10 +221,12 @@ private fun EmailStep(
     onEmailChange: (String) -> Unit,
     isLoading: Boolean,
     error: String?,
-    onSendOtp: () -> Unit
+    onSendOtp: () -> Unit,
+    onContactEmail: () -> Unit,
+    onContactWhatsApp: () -> Unit
 ) {
     Text(
-        text = "Masukkan alamat email yang terdaftar",
+        text = "Masukkan email terdaftar. Kode OTP akan masuk ke panel Customer Service, lalu CS mengirimkannya ke kamu.",
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
@@ -228,11 +248,27 @@ private fun EmailStep(
     if (error != null) Spacer(modifier = Modifier.height(16.dp))
 
     NexPosButton(
-        text = "Kirim Kode OTP",
+        text = "Buat Permintaan OTP",
         onClick = onSendOtp,
         isLoading = isLoading,
         enabled = email.isNotBlank()
     )
+    Spacer(modifier = Modifier.height(12.dp))
+    OutlinedButton(
+        onClick = onContactEmail,
+        modifier = Modifier.fillMaxWidth(),
+        enabled = email.isNotBlank()
+    ) {
+        Text("Hubungi CS via Gmail")
+    }
+    Spacer(modifier = Modifier.height(8.dp))
+    OutlinedButton(
+        onClick = onContactWhatsApp,
+        modifier = Modifier.fillMaxWidth(),
+        enabled = email.isNotBlank()
+    ) {
+        Text("Hubungi CS via WhatsApp")
+    }
 }
 
 @Composable
@@ -246,7 +282,9 @@ private fun OtpStep(
     resendCountdown: Int,
     onVerifyOtp: () -> Unit,
     onResendOtp: () -> Unit,
-    onClearSuccess: () -> Unit
+    onClearSuccess: () -> Unit,
+    onContactEmail: () -> Unit,
+    onContactWhatsApp: () -> Unit
 ) {
     val focusRequester = remember { FocusRequester() }
 
@@ -262,7 +300,7 @@ private fun OtpStep(
     }
 
     Text(
-        text = "Kode OTP dikirim ke:",
+        text = "Permintaan OTP untuk:",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
@@ -283,7 +321,7 @@ private fun OtpStep(
     Spacer(modifier = Modifier.height(8.dp))
 
     Text(
-        text = "Kode berlaku 10 menit",
+        text = "Hubungi CS melalui tombol di bawah. Setelah menerima kode, masukkan 6 digit OTP di sini.",
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.fillMaxWidth(),
@@ -314,17 +352,25 @@ private fun OtpStep(
         enabled = otp.length == 6
     )
     Spacer(modifier = Modifier.height(12.dp))
+    OutlinedButton(onClick = onContactEmail, modifier = Modifier.fillMaxWidth()) {
+        Text("Hubungi CS via Gmail")
+    }
+    Spacer(modifier = Modifier.height(8.dp))
+    OutlinedButton(onClick = onContactWhatsApp, modifier = Modifier.fillMaxWidth()) {
+        Text("Hubungi CS via WhatsApp")
+    }
+    Spacer(modifier = Modifier.height(12.dp))
 
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("Belum terima kode?", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Perlu buat ulang kode?", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(modifier = Modifier.width(4.dp))
         if (resendCountdown > 0) {
             Text(
-                text = "Kirim ulang (${resendCountdown}s)",
+                text = "Minta ulang (${resendCountdown}s)",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium
             )
@@ -332,7 +378,7 @@ private fun OtpStep(
             TextButton(
                 onClick = onResendOtp,
                 enabled = !isLoading
-            ) { Text("Kirim Ulang") }
+            ) { Text("Minta Ulang") }
         }
     }
 }

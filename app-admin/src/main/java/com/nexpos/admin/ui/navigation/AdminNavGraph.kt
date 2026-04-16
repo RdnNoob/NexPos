@@ -12,9 +12,12 @@ import com.nexpos.admin.ui.screens.auth.LoginScreen
 import com.nexpos.admin.ui.screens.auth.RegisterScreen
 import com.nexpos.admin.ui.screens.dashboard.DashboardScreen
 import com.nexpos.admin.ui.screens.devices.DevicesScreen
+import com.nexpos.admin.ui.screens.notifications.NotificationsScreen
 import com.nexpos.admin.ui.screens.outlets.CreateOutletScreen
 import com.nexpos.admin.ui.screens.outlets.OutletsScreen
 import com.nexpos.admin.ui.screens.splash.SplashScreen
+import com.nexpos.admin.ui.screens.superadmin.SuperAdminDashboardScreen
+import com.nexpos.admin.ui.screens.superadmin.SuperAdminLoginScreen
 import com.nexpos.admin.ui.screens.transactions.TransactionsScreen
 
 sealed class AdminScreen(val route: String) {
@@ -27,10 +30,15 @@ sealed class AdminScreen(val route: String) {
     object CreateOutlet : AdminScreen("create_outlet")
     object Devices : AdminScreen("devices")
     object Transactions : AdminScreen("transactions")
+    object Notifications : AdminScreen("notifications")
     object OutletTransactions : AdminScreen("transactions/{outletId}") {
         fun createRoute(outletId: Int) = "transactions/$outletId"
     }
     object ForgotPassword : AdminScreen("forgot_password")
+    object SuperAdminLogin : AdminScreen("super_admin_login")
+    object SuperAdminDashboard : AdminScreen("super_admin_dashboard/{token}") {
+        fun createRoute(token: String) = "super_admin_dashboard/$token"
+    }
 }
 
 @OptIn(ExperimentalAnimationApi::class)
@@ -76,7 +84,27 @@ fun AdminNavGraph() {
             LoginScreen(
                 onLoginSuccess = { navController.navigate(AdminScreen.Dashboard.route) { popUpTo(0) } },
                 onNavigateToRegister = { navController.navigate(AdminScreen.Register.route) },
-                onNavigateToForgotPassword = { navController.navigate(AdminScreen.ForgotPassword.route) }
+                onNavigateToForgotPassword = { navController.navigate(AdminScreen.ForgotPassword.route) },
+                onNavigateToSuperAdmin = { navController.navigate(AdminScreen.SuperAdminLogin.route) }
+            )
+        }
+        composable(AdminScreen.SuperAdminLogin.route) {
+            SuperAdminLoginScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onLoginSuccess = { token ->
+                    navController.navigate(AdminScreen.SuperAdminDashboard.createRoute(token)) {
+                        popUpTo(AdminScreen.SuperAdminLogin.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable(
+            AdminScreen.SuperAdminDashboard.route,
+            arguments = listOf(navArgument("token") { type = NavType.StringType })
+        ) { backStackEntry ->
+            SuperAdminDashboardScreen(
+                token = backStackEntry.arguments?.getString("token").orEmpty(),
+                onLogout = { navController.navigate(AdminScreen.Login.route) { popUpTo(0) } }
             )
         }
         composable(AdminScreen.ForgotPassword.route) {
@@ -97,8 +125,13 @@ fun AdminNavGraph() {
                 onNavigateToDevices = { navController.navigate(AdminScreen.Devices.route) },
                 onNavigateToTransactions = { navController.navigate(AdminScreen.Transactions.route) },
                 onNavigateToAccount = { navController.navigate(AdminScreen.Account.route) },
+                onNavigateToNotifications = { navController.navigate(AdminScreen.Notifications.route) },
+                onNavigateToSuperAdmin = { navController.navigate(AdminScreen.SuperAdminLogin.route) },
                 onLogout = { navController.navigate(AdminScreen.Login.route) { popUpTo(0) } }
             )
+        }
+        composable(AdminScreen.Notifications.route) {
+            NotificationsScreen(onNavigateBack = { navController.popBackStack() })
         }
         composable(AdminScreen.Account.route) {
             AccountScreen(

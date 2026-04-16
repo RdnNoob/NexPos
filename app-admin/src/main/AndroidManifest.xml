@@ -8,7 +8,7 @@
         android:name=".NexPosAdminApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="NexPos Admin"
+        android:label="NexPos Owners"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.NexPosAdmin">
