@@ -18,6 +18,8 @@ import com.nexpos.laundry.ui.viewmodel.LaundryTransactionViewModel
 fun HomeScreen(
     onNavigateToCreate: () -> Unit,
     onNavigateToList: () -> Unit,
+    onNavigateToServices: () -> Unit,
+    onNavigateToCustomers: () -> Unit,
     onNavigateToAccount: () -> Unit,
     onLogout: () -> Unit,
     heartbeatViewModel: HeartbeatViewModel = hiltViewModel(),
@@ -153,6 +155,28 @@ fun HomeScreen(
                     }
                     Spacer(modifier = Modifier.weight(1f))
                     Icon(Icons.Default.ChevronRight, null)
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Card(modifier = Modifier.weight(1f), onClick = onNavigateToServices) {
+                    Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.LocalLaundryService, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Layanan", fontWeight = FontWeight.Bold)
+                        Text("Harga & satuan", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                Card(modifier = Modifier.weight(1f), onClick = onNavigateToCustomers) {
+                    Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(32.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Pelanggan", fontWeight = FontWeight.Bold)
+                        Text("Database customer", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
 
