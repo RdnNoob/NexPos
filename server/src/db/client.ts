@@ -126,7 +126,7 @@ const migrations = [
   "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer_id UUID",
   "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS service_id UUID",
   "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS quantity FLOAT",
-  "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS total_price INTEGER",
+  "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS total_amount INTEGER",
   "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'diterima'",
   "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()",
   "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()",
