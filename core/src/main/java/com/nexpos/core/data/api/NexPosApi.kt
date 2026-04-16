@@ -72,6 +72,30 @@ interface NexPosApi {
         @Body request: CreateTransactionRequest
     ): Response<TransactionInfo>
 
+    @GET("/api/services")
+    suspend fun getServices(
+        @Header("Authorization") token: String,
+        @Query("outletId") outletId: Int? = null
+    ): Response<ServiceListResponse>
+
+    @POST("/api/services")
+    suspend fun createService(
+        @Header("Authorization") token: String,
+        @Body request: CreateServiceRequest
+    ): Response<ServiceResponse>
+
+    @GET("/api/customers")
+    suspend fun getCustomers(
+        @Header("Authorization") token: String,
+        @Query("outletId") outletId: Int? = null
+    ): Response<CustomerListResponse>
+
+    @POST("/api/customers")
+    suspend fun createCustomer(
+        @Header("Authorization") token: String,
+        @Body request: CreateCustomerRequest
+    ): Response<CustomerResponse>
+
     @PUT("/api/transactions/status")
     suspend fun updateTransactionStatus(
         @Header("Authorization") token: String,
