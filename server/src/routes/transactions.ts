@@ -133,10 +133,10 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response): Pro
     const outletClientId = safeInt(outlet.client_id ?? outlet.id);
 
     const result = await pool.query(
-      `INSERT INTO transactions (outlet_id, customer, service, amount, status)
-       VALUES ($1, $2, $3, $4, 'diterima')
+      `INSERT INTO transactions (outlet_id, customer, service, amount, total_amount, status)
+       VALUES ($1::text, $2::text, $3::text, $4::numeric, $5::numeric, 'diterima')
        RETURNING *`,
-      [outletDbId, customer.trim(), service.trim(), amountNum]
+      [outletDbId, customer.trim(), service.trim(), amountNum, amountNum]
     );
     const t = result.rows[0];
 
