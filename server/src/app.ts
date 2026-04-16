@@ -3,6 +3,8 @@ import cors from "cors";
 import authRouter from "./routes/auth";
 import outletsRouter from "./routes/outlets";
 import devicesRouter from "./routes/devices";
+import servicesRouter from "./routes/services";
+import customersRouter from "./routes/customers";
 import transactionsRouter from "./routes/transactions";
 import superAdminRouter from "./routes/superAdmin";
 import notificationsRouter from "./routes/notifications";
@@ -28,6 +30,8 @@ app.get("/api/healthz", (_req, res) => {
 app.use("/api/auth", authRouter);
 app.use("/api/outlets", outletsRouter);
 app.use("/api/devices", devicesRouter);
+app.use("/api/services", servicesRouter);
+app.use("/api/customers", customersRouter);
 app.use("/api/transactions", transactionsRouter);
 app.use("/api/super-admin", superAdminRouter);
 app.use("/api/notifications", notificationsRouter);
