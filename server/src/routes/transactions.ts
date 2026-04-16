@@ -67,7 +67,40 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Prom
 });
 
 router.post("/", authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
-  const { customer, service, amount } = req.body;
+  const { customer, service, amount, outletId, customerId, serviceId, quantity } = req.body;
+
+  if (outletId && customerId && serviceId && quantity !== undefined && quantity !== null) {
+    try {
+      const serviceResult = await pool.query(
+        "SELECT name, price FROM services WHERE id::text = $1::text",
+        [serviceId]
+      );
+      const customerResult = await pool.query(
+        "SELECT name FROM customers WHERE id::text = $1::text",
+        [customerId]
+      );
+      const quantityNum = Number(quantity);
+      const price = Number(serviceResult.rows[0]?.price || 0);
+      const totalPrice = Math.round(price * quantityNum);
+      const customerName = customerResult.rows[0]?.name ?? String(customerId);
+      const serviceName = serviceResult.rows[0]?.name ?? String(serviceId);
+
+      const result = await pool.query(
+        `INSERT INTO transactions
+         (outlet_id, owner_id, customer_id, service_id, quantity, total_price, customer, service, amount, status)
+         VALUES ($1::text, $2::text, $3::uuid, $4::uuid, $5::float, $6::integer, $7::text, $8::text, $9::numeric, 'pending')
+         RETURNING *`,
+        [outletId, req.userId, customerId, serviceId, quantityNum, totalPrice, customerName, serviceName, totalPrice]
+      );
+
+      res.status(201).json({ transaction: result.rows[0] });
+      return;
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Terjadi kesalahan server" });
+      return;
+    }
+  }
 
   if (!customer || !service || amount === undefined || amount === null) {
     res.status(400).json({ message: "Customer, layanan, dan harga wajib diisi" });
@@ -123,6 +156,23 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response): Pro
       updatedAt: t.updated_at,
       outletName: outlet.name ?? null,
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Terjadi kesalahan server" });
+  }
+});
+
+router.put("/:id/status", authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  try {
+    const result = await pool.query(
+      "UPDATE transactions SET status = $1::text, updated_at = NOW() WHERE id::text = $2::text RETURNING *",
+      [status, id]
+    );
+
+    res.json({ transaction: result.rows[0] });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Terjadi kesalahan server" });
