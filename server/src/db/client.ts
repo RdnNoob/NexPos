@@ -9,6 +9,7 @@ const pool = new Pool({
 });
 
 const migrations = [
+  "CREATE EXTENSION IF NOT EXISTS pgcrypto",
   // Hapus NOT NULL di owner_id agar tidak crash jika tipe UUID (Railway legacy schema)
   "ALTER TABLE devices ALTER COLUMN owner_id DROP NOT NULL",
   "ALTER TABLE outlets ALTER COLUMN owner_id DROP NOT NULL",
@@ -121,6 +122,11 @@ const migrations = [
   "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer VARCHAR(255)",
   "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS service VARCHAR(255)",
   "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS amount DECIMAL(10,2)",
+  "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS owner_id TEXT",
+  "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS customer_id UUID",
+  "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS service_id UUID",
+  "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS quantity FLOAT",
+  "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS total_price INTEGER",
   "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'diterima'",
   "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()",
   "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()",
@@ -138,6 +144,8 @@ const migrations = [
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_permanent BOOLEAN DEFAULT FALSE",
   "CREATE TABLE IF NOT EXISTS super_admin_events (id SERIAL PRIMARY KEY, type VARCHAR(50) NOT NULL, user_id VARCHAR(255), email VARCHAR(255), name VARCHAR(255), otp_code VARCHAR(6), message TEXT, metadata JSONB, created_at TIMESTAMP DEFAULT NOW())",
   "CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY, owner_id VARCHAR(255) NOT NULL, title VARCHAR(255) NOT NULL, message TEXT NOT NULL, type VARCHAR(50) DEFAULT 'info', is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT NOW())",
+  "CREATE TABLE IF NOT EXISTS services (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), outlet_id TEXT, owner_id TEXT, name TEXT, price INTEGER, unit TEXT, created_at TIMESTAMP DEFAULT NOW())",
+  "CREATE TABLE IF NOT EXISTS customers (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), outlet_id TEXT, owner_id TEXT, name TEXT, phone TEXT, address TEXT, created_at TIMESTAMP DEFAULT NOW())",
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_hash VARCHAR(64)",
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_request_count INTEGER DEFAULT 0",
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_last_request_at TIMESTAMP",
@@ -168,6 +176,8 @@ export async function initDb() {
         banned_permanent BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT NOW()
       );
+
+      CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
       CREATE TABLE IF NOT EXISTS outlets (
         id SERIAL PRIMARY KEY,
@@ -200,6 +210,26 @@ export async function initDb() {
         status VARCHAR(50) DEFAULT 'diterima',
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS services (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        outlet_id TEXT,
+        owner_id TEXT,
+        name TEXT,
+        price INTEGER,
+        unit TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS customers (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        outlet_id TEXT,
+        owner_id TEXT,
+        name TEXT,
+        phone TEXT,
+        address TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
       );
 
       CREATE TABLE IF NOT EXISTS super_admin_events (
