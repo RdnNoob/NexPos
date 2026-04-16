@@ -21,6 +21,12 @@ data class ForgotPasswordRequest(
     val email: String
 )
 
+data class ForgotPasswordResponse(
+    val message: String,
+    val contactCs: Boolean = false,
+    val cooldown: Int = 0
+)
+
 data class VerifyOtpRequest(
     val email: String,
     val otp: String

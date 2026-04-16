@@ -19,7 +19,7 @@ interface NexPosApi {
     suspend fun loginDevice(@Body request: DeviceLoginRequest): Response<AuthResponse>
 
     @POST("/api/auth/forgot-password")
-    suspend fun forgotPassword(@Body request: ForgotPasswordRequest): Response<MessageResponse>
+    suspend fun forgotPassword(@Body request: ForgotPasswordRequest): Response<ForgotPasswordResponse>
 
     @POST("/api/auth/verify-otp")
     suspend fun verifyOtp(@Body request: VerifyOtpRequest): Response<VerifyOtpResponse>

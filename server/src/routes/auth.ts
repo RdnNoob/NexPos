@@ -249,6 +249,14 @@ router.delete("/account", async (req: Request, res: Response): Promise<void> => 
 });
 
 // ── Forgot Password: Step 1 – kirim OTP ──────────────────────────────────────
+const OTP_COOLDOWN_SEC = 60;
+const OTP_MAX_REQUESTS = 3;
+const OTP_RESET_HOURS = 24;
+
+function hashOtp(otp: string, email: string): string {
+  return crypto.createHash("sha256").update(otp + email.toLowerCase()).digest("hex");
+}
+
 router.post("/forgot-password", async (req: Request, res: Response): Promise<void> => {
   const { email } = req.body;
   if (!email) {
@@ -256,44 +264,81 @@ router.post("/forgot-password", async (req: Request, res: Response): Promise<voi
     return;
   }
 
+  const normalizedEmail = email.trim().toLowerCase();
+
   try {
-    const result = await pool.query("SELECT id, name, email FROM users WHERE email = $1", [email.trim().toLowerCase()]);
+    const result = await pool.query(
+      "SELECT id, name, email, otp_request_count, otp_last_request_at FROM users WHERE email = $1",
+      [normalizedEmail]
+    );
     if (result.rows.length === 0) {
-      // Jangan bocorkan info "email tidak terdaftar" — respons sama seperti sukses
-      res.json({ message: "Jika email terdaftar, kode OTP telah dikirim" });
+      res.json({ message: "Jika email terdaftar, kode OTP telah dikirim ke email Anda" });
       return;
     }
 
     const user = result.rows[0];
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 menit
+    const now = Date.now();
 
-    await pool.query(
-      "UPDATE users SET otp_code = $1, otp_expires_at = $2, reset_token = NULL, reset_token_expires_at = NULL WHERE id = $3",
-      [otp, expiresAt, user.id]
-    );
+    // Reset count jika sudah 24 jam sejak request terakhir
+    const lastRequestMs = user.otp_last_request_at ? new Date(user.otp_last_request_at).getTime() : 0;
+    const hoursSinceLast = (now - lastRequestMs) / (1000 * 60 * 60);
+    const requestCount = hoursSinceLast >= OTP_RESET_HOURS ? 0 : (user.otp_request_count || 0);
 
-    await pool.query(
-      "INSERT INTO super_admin_events (type, user_id, email, name, otp_code, message, metadata) VALUES ('otp_request', $1, $2, $3, $4, $5, $6)",
-      [String(user.id), user.email, user.name, otp, "User meminta OTP reset password melalui Customer Service", JSON.stringify({ expiresAt: expiresAt.toISOString() })]
-    );
-
-    // Selalu log OTP ke console (Railway logs) agar bisa dicek jika email tidak masuk
-    console.info("[forgot-password] ========================================");
-    console.info(`[forgot-password] OTP untuk: ${user.email} (${user.name})`);
-    console.info(`[forgot-password] Kode OTP: ${otp}`);
-    console.info(`[forgot-password] Berlaku sampai: ${expiresAt.toISOString()}`);
-    console.info("[forgot-password] ========================================");
-
-    if (process.env.DISABLE_OTP_EMAIL !== "true") {
-      sendOtpEmail(user.email, otp, user.name).catch((emailErr: any) => {
-        console.error("[forgot-password] Gagal kirim email:", emailErr?.message || emailErr);
-        console.error("[forgot-password] GMAIL_USER set?", !!process.env.GMAIL_USER);
-        console.error("[forgot-password] GMAIL_APP_PASSWORD set?", !!process.env.GMAIL_APP_PASSWORD);
+    // Cek cooldown 60 detik
+    const secondsSinceLast = (now - lastRequestMs) / 1000;
+    if (requestCount > 0 && secondsSinceLast < OTP_COOLDOWN_SEC) {
+      const remaining = Math.ceil(OTP_COOLDOWN_SEC - secondsSinceLast);
+      res.status(429).json({
+        message: `Tunggu ${remaining} detik sebelum meminta OTP kembali`,
+        cooldown: remaining,
       });
+      return;
     }
 
-    res.json({ message: "Permintaan OTP masuk ke panel Customer Service" });
+    // Cek batas 3x request
+    if (requestCount >= OTP_MAX_REQUESTS) {
+      res.status(429).json({
+        message: "Batas permintaan OTP habis (maks 3x per 24 jam). Hubungi Customer Service untuk bantuan.",
+        contact_cs: true,
+      });
+      return;
+    }
+
+    // Generate + hash OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpHash = hashOtp(otp, normalizedEmail);
+    const expiresAt = new Date(now + 10 * 60 * 1000);
+    const newCount = requestCount + 1;
+
+    await pool.query(
+      `UPDATE users
+       SET otp_hash = $1, otp_expires_at = $2,
+           otp_request_count = $3, otp_last_request_at = NOW(),
+           otp_code = NULL, reset_token = NULL, reset_token_expires_at = NULL
+       WHERE id = $4`,
+      [otpHash, expiresAt, newCount, user.id]
+    );
+
+    // Log ke admin dashboard
+    await pool.query(
+      "INSERT INTO super_admin_events (type, user_id, email, name, otp_code, message, metadata) VALUES ('otp_request', $1, $2, $3, $4, $5, $6)",
+      [
+        String(user.id), user.email, user.name, otp,
+        `Request OTP #${newCount}/${OTP_MAX_REQUESTS}`,
+        JSON.stringify({ expiresAt: expiresAt.toISOString(), requestCount: newCount }),
+      ]
+    ).catch(() => {});
+
+    // Selalu log ke Railway console sebagai fallback
+    console.info(`[forgot-password] OTP untuk ${user.email}: ${otp} | #${newCount}/${OTP_MAX_REQUESTS} | exp: ${expiresAt.toISOString()}`);
+
+    // Kirim via Brevo SMTP di background
+    sendOtpEmail(user.email, otp, user.name).catch((emailErr: any) => {
+      console.error("[forgot-password] Gagal kirim email:", emailErr?.message);
+      console.error("[forgot-password] BREVO_SMTP_LOGIN set?", !!process.env.BREVO_SMTP_LOGIN);
+    });
+
+    res.json({ message: "Kode OTP berhasil dikirim ke email Anda" });
   } catch (err: any) {
     console.error("[forgot-password]", err);
     res.status(500).json({ message: "Terjadi kesalahan server" });
@@ -308,34 +353,42 @@ router.post("/verify-otp", async (req: Request, res: Response): Promise<void> =>
     return;
   }
 
+  const normalizedEmail = email.trim().toLowerCase();
+
   try {
     const result = await pool.query(
-      "SELECT id, otp_code, otp_expires_at FROM users WHERE email = $1",
-      [email.trim().toLowerCase()]
+      "SELECT id, otp_hash, otp_expires_at FROM users WHERE email = $1",
+      [normalizedEmail]
     );
 
     if (result.rows.length === 0) {
-      res.status(400).json({ message: "Kode OTP tidak valid atau sudah kadaluarsa" });
+      res.status(400).json({ message: "OTP tidak ditemukan" });
       return;
     }
 
     const user = result.rows[0];
 
-    if (!user.otp_code || user.otp_code !== otp.trim()) {
-      res.status(400).json({ message: "Kode OTP salah" });
+    if (!user.otp_hash) {
+      res.status(400).json({ message: "OTP tidak ditemukan atau sudah digunakan" });
       return;
     }
 
     if (!user.otp_expires_at || new Date(user.otp_expires_at) < new Date()) {
-      res.status(400).json({ message: "Kode OTP sudah kadaluarsa. Minta kode baru." });
+      res.status(400).json({ message: "OTP kadaluarsa. Minta kode baru." });
+      return;
+    }
+
+    const expectedHash = hashOtp(otp.trim(), normalizedEmail);
+    if (user.otp_hash !== expectedHash) {
+      res.status(400).json({ message: "OTP salah" });
       return;
     }
 
     const resetToken = crypto.randomBytes(48).toString("hex");
-    const resetExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 menit
+    const resetExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
     await pool.query(
-      "UPDATE users SET otp_code = NULL, otp_expires_at = NULL, reset_token = $1, reset_token_expires_at = $2 WHERE id = $3",
+      "UPDATE users SET otp_hash = NULL, otp_expires_at = NULL, reset_token = $1, reset_token_expires_at = $2 WHERE id = $3",
       [resetToken, resetExpiresAt, user.id]
     );
 
@@ -384,7 +437,7 @@ router.post("/reset-password", async (req: Request, res: Response): Promise<void
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await pool.query(
-      "UPDATE users SET password = $1, reset_token = NULL, reset_token_expires_at = NULL WHERE id = $2",
+      "UPDATE users SET password = $1, reset_token = NULL, reset_token_expires_at = NULL, otp_request_count = 0, otp_last_request_at = NULL WHERE id = $2",
       [hashedPassword, user.id]
     );
 

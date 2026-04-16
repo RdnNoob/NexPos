@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import javax.inject.Inject
 
 data class ForgotPasswordState(
@@ -22,13 +23,12 @@ data class ForgotPasswordState(
     val error: String? = null,
     val successMessage: String? = null,
     val resendCountdown: Int = 0,
-    // internal
     val email: String = "",
     val resetToken: String = ""
 )
 
 enum class ForgotPasswordStep {
-    EMAIL, OTP, NEW_PASSWORD, DONE
+    EMAIL, OTP, NEW_PASSWORD, DONE, CONTACT_CS
 }
 
 @HiltViewModel
@@ -50,19 +50,39 @@ class ForgotPasswordViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true, error = null) }
             try {
                 val response = api.forgotPassword(ForgotPasswordRequest(email.trim().lowercase()))
-                if (response.isSuccessful) {
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            step = ForgotPasswordStep.OTP,
-                            email = email.trim().lowercase(),
-                            error = null
-                        )
+                when {
+                    response.isSuccessful -> {
+                        _state.update {
+                            it.copy(
+                                isLoading = false,
+                                step = ForgotPasswordStep.OTP,
+                                email = email.trim().lowercase(),
+                                error = null
+                            )
+                        }
+                        startResendCountdown(60)
                     }
-                    startResendCountdown()
-                } else {
-                    val msg = parseError(response.errorBody()?.string())
-                    _state.update { it.copy(isLoading = false, error = msg) }
+                    response.code() == 429 -> {
+                        val errBody = parseErrorBody(response.errorBody()?.string())
+                        if (errBody.contactCs) {
+                            _state.update {
+                                it.copy(
+                                    isLoading = false,
+                                    step = ForgotPasswordStep.CONTACT_CS,
+                                    email = email.trim().lowercase(),
+                                    error = null
+                                )
+                            }
+                        } else {
+                            val cooldown = errBody.cooldown
+                            if (cooldown > 0) startResendCountdown(cooldown)
+                            _state.update { it.copy(isLoading = false, error = errBody.message) }
+                        }
+                    }
+                    else -> {
+                        val msg = parseError(response.errorBody()?.string())
+                        _state.update { it.copy(isLoading = false, error = msg) }
+                    }
                 }
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false, error = "Tidak dapat terhubung ke server") }
@@ -76,12 +96,27 @@ class ForgotPasswordViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true, error = null) }
             try {
                 val response = api.forgotPassword(ForgotPasswordRequest(email))
-                if (response.isSuccessful) {
-                    _state.update { it.copy(isLoading = false, successMessage = "Kode OTP baru telah dikirim", error = null) }
-                    startResendCountdown()
-                } else {
-                    val msg = parseError(response.errorBody()?.string())
-                    _state.update { it.copy(isLoading = false, error = msg) }
+                when {
+                    response.isSuccessful -> {
+                        _state.update { it.copy(isLoading = false, successMessage = "Kode OTP baru telah dikirim ke email", error = null) }
+                        startResendCountdown(60)
+                    }
+                    response.code() == 429 -> {
+                        val errBody = parseErrorBody(response.errorBody()?.string())
+                        if (errBody.contactCs) {
+                            _state.update {
+                                it.copy(isLoading = false, step = ForgotPasswordStep.CONTACT_CS, error = null)
+                            }
+                        } else {
+                            val cooldown = errBody.cooldown
+                            if (cooldown > 0) startResendCountdown(cooldown)
+                            _state.update { it.copy(isLoading = false, error = errBody.message) }
+                        }
+                    }
+                    else -> {
+                        val msg = parseError(response.errorBody()?.string())
+                        _state.update { it.copy(isLoading = false, error = msg) }
+                    }
                 }
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false, error = "Tidak dapat terhubung ke server") }
@@ -156,31 +191,34 @@ class ForgotPasswordViewModel @Inject constructor(
     fun clearError() = _state.update { it.copy(error = null) }
     fun clearSuccessMessage() = _state.update { it.copy(successMessage = null) }
 
-    private fun startResendCountdown() {
+    private fun startResendCountdown(seconds: Int) {
         countdownJob?.cancel()
-        _state.update { it.copy(resendCountdown = 60) }
+        _state.update { it.copy(resendCountdown = seconds) }
         countdownJob = viewModelScope.launch {
-            repeat(60) {
+            repeat(seconds) {
                 delay(1_000)
                 _state.update { it.copy(resendCountdown = it.resendCountdown - 1) }
             }
         }
     }
 
-    private fun parseError(raw: String?): String {
-        if (raw == null) return "Terjadi kesalahan server"
+    private data class ErrorBody(val message: String, val contactCs: Boolean, val cooldown: Int)
+
+    private fun parseErrorBody(raw: String?): ErrorBody {
+        if (raw == null) return ErrorBody("Terjadi kesalahan server", false, 0)
         return try {
-            val start = raw.indexOf("\"message\":\"")
-            if (start == -1) "Terjadi kesalahan"
-            else {
-                val valueStart = start + 11
-                val valueEnd = raw.indexOf("\"", valueStart)
-                if (valueEnd == -1) "Terjadi kesalahan" else raw.substring(valueStart, valueEnd)
-            }
+            val json = JSONObject(raw)
+            ErrorBody(
+                message = json.optString("message", "Terjadi kesalahan"),
+                contactCs = json.optBoolean("contact_cs", false),
+                cooldown = json.optInt("cooldown", 0)
+            )
         } catch (_: Exception) {
-            "Terjadi kesalahan"
+            ErrorBody("Terjadi kesalahan", false, 0)
         }
     }
+
+    private fun parseError(raw: String?): String = parseErrorBody(raw).message
 
     override fun onCleared() {
         super.onCleared()

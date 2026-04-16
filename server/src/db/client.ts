@@ -138,6 +138,9 @@ const migrations = [
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_permanent BOOLEAN DEFAULT FALSE",
   "CREATE TABLE IF NOT EXISTS super_admin_events (id SERIAL PRIMARY KEY, type VARCHAR(50) NOT NULL, user_id VARCHAR(255), email VARCHAR(255), name VARCHAR(255), otp_code VARCHAR(6), message TEXT, metadata JSONB, created_at TIMESTAMP DEFAULT NOW())",
   "CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY, owner_id VARCHAR(255) NOT NULL, title VARCHAR(255) NOT NULL, message TEXT NOT NULL, type VARCHAR(50) DEFAULT 'info', is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT NOW())",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_hash VARCHAR(64)",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_request_count INTEGER DEFAULT 0",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_last_request_at TIMESTAMP",
 ];
 
 export async function ensureRuntimeSchema() {

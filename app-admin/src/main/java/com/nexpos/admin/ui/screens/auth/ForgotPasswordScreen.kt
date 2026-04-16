@@ -25,6 +25,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import android.net.Uri
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Warning
 import com.nexpos.admin.ui.viewmodel.ForgotPasswordStep
 import com.nexpos.admin.ui.viewmodel.ForgotPasswordViewModel
 import com.nexpos.core.ui.components.NexPosButton
@@ -117,6 +119,13 @@ fun ForgotPasswordScreen(
                     onContactWhatsApp = { openWhatsAppCs(state.email) }
                 )
 
+                ForgotPasswordStep.CONTACT_CS -> ContactCsStep(
+                    email = state.email,
+                    onContactEmail = { openEmailCs(state.email) },
+                    onContactWhatsApp = { openWhatsAppCs(state.email) },
+                    onNavigateBack = { try { onNavigateBack() } catch (_: Exception) { } }
+                )
+
                 ForgotPasswordStep.NEW_PASSWORD -> NewPasswordStep(
                     newPassword = newPassword,
                     confirmPassword = confirmPassword,
@@ -140,9 +149,10 @@ fun ForgotPasswordScreen(
 
 @Composable
 private fun StepIndicator(currentStep: ForgotPasswordStep) {
-    val steps = listOf("Hubungi CS", "Verifikasi OTP", "Password Baru")
+    val steps = listOf("Kirim OTP", "Verifikasi OTP", "Password Baru")
     val currentIndex = when (currentStep) {
         ForgotPasswordStep.EMAIL -> 0
+        ForgotPasswordStep.CONTACT_CS -> 0
         ForgotPasswordStep.OTP -> 1
         ForgotPasswordStep.NEW_PASSWORD -> 2
         ForgotPasswordStep.DONE -> 2
@@ -530,6 +540,76 @@ private fun DoneStep(
             text = "Masuk Sekarang",
             onClick = onGoToLogin
         )
+    }
+}
+
+@Composable
+private fun ContactCsStep(
+    email: String,
+    onContactEmail: () -> Unit,
+    onContactWhatsApp: () -> Unit,
+    onNavigateBack: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Default.Warning,
+            contentDescription = null,
+            modifier = Modifier.size(72.dp),
+            tint = MaterialTheme.colorScheme.error
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Batas Permintaan OTP Habis",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.error
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = "Kamu sudah mencapai batas maksimal 3x permintaan OTP dalam 24 jam.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Hubungi Customer Service kami untuk membantu reset password akun:",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        if (email.isNotBlank()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = email,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center
+            )
+        }
+        Spacer(modifier = Modifier.height(32.dp))
+        NexPosButton(
+            text = "Hubungi CS via WhatsApp",
+            onClick = onContactWhatsApp
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        OutlinedButton(
+            onClick = onContactEmail,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Email, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Hubungi CS via Email")
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+        TextButton(onClick = onNavigateBack) {
+            Text("Kembali ke Login")
+        }
     }
 }
 
