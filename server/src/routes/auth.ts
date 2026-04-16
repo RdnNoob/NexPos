@@ -332,10 +332,10 @@ router.post("/forgot-password", async (req: Request, res: Response): Promise<voi
     // Selalu log ke Railway console sebagai fallback
     console.info(`[forgot-password] OTP untuk ${user.email}: ${otp} | #${newCount}/${OTP_MAX_REQUESTS} | exp: ${expiresAt.toISOString()}`);
 
-    // Kirim via Brevo SMTP di background
+    // Kirim via Brevo API di background
     sendOtpEmail(user.email, otp, user.name).catch((emailErr: any) => {
       console.error("[forgot-password] Gagal kirim email:", emailErr?.message);
-      console.error("[forgot-password] BREVO_SMTP_LOGIN set?", !!process.env.BREVO_SMTP_LOGIN);
+      console.error("[forgot-password] BREVO_API_KEY set?", !!process.env.BREVO_API_KEY);
     });
 
     res.json({ message: "Kode OTP berhasil dikirim ke email Anda" });

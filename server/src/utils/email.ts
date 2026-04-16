@@ -1,43 +1,46 @@
-import nodemailer from "nodemailer";
+import axios from "axios";
 
-function createTransporter() {
-  const login = process.env.BREVO_SMTP_LOGIN;
-  const password = process.env.BREVO_SMTP_PASSWORD;
-  if (!login || !password) {
-    return null;
-  }
-  return nodemailer.createTransport({
-    host: "smtp-relay.brevo.com",
-    port: 587,
-    secure: false,
-    auth: { user: login, pass: password },
-    connectionTimeout: 15_000,
-    greetingTimeout: 15_000,
-    socketTimeout: 20_000,
-  });
+const BREVO_EMAIL_URL = "https://api.brevo.com/v3/smtp/email";
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 export async function sendOtpEmail(to: string, otp: string, name: string): Promise<void> {
-  const transporter = createTransporter();
-
-  if (!transporter) {
-    console.warn("[Email] BREVO_SMTP_LOGIN atau BREVO_SMTP_PASSWORD belum dikonfigurasi.");
-    return;
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) {
+    throw new Error("BREVO_API_KEY belum dikonfigurasi.");
   }
 
-  const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.BREVO_SMTP_LOGIN || "noreply@nexpos.app";
+  const senderEmail = process.env.BREVO_SENDER_EMAIL || "noreply@nexpos.app";
+  const senderName = process.env.BREVO_SENDER_NAME || "NexPos Admin";
+  const safeName = escapeHtml(name || "Admin");
+  const safeOtp = escapeHtml(otp);
 
-  const info = await transporter.sendMail({
-    from: `"NexPos Admin" <${senderEmail}>`,
-    to,
+  const body = {
+    sender: {
+      email: senderEmail,
+      name: senderName,
+    },
+    to: [
+      {
+        email: to,
+        name,
+      },
+    ],
     subject: "Kode OTP Reset Password NexPos",
-    html: `
+    htmlContent: `
       <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;border:1px solid #e0e0e0;border-radius:12px">
         <h2 style="color:#1565C0;margin-bottom:8px">NexPos Admin</h2>
-        <p style="color:#555;margin-bottom:24px">Halo <strong>${name}</strong>,</p>
+        <p style="color:#555;margin-bottom:24px">Halo <strong>${safeName}</strong>,</p>
         <p style="color:#333">Anda meminta reset password untuk akun NexPos Anda. Gunakan kode OTP berikut:</p>
         <div style="background:#E3F2FD;border-radius:8px;padding:20px;text-align:center;margin:24px 0">
-          <span style="font-size:36px;font-weight:bold;letter-spacing:12px;color:#1565C0">${otp}</span>
+          <span style="font-size:36px;font-weight:bold;letter-spacing:12px;color:#1565C0">${safeOtp}</span>
         </div>
         <p style="color:#555;font-size:14px">Kode ini berlaku selama <strong>10 menit</strong>. Jangan bagikan kode ini kepada siapapun.</p>
         <p style="color:#555;font-size:14px">Jika Anda tidak meminta reset password, abaikan email ini.</p>
@@ -45,12 +48,29 @@ export async function sendOtpEmail(to: string, otp: string, name: string): Promi
         <p style="color:#aaa;font-size:12px">NexPos &mdash; Manajemen Outlet Laundry Digital</p>
       </div>
     `,
-  });
+  };
 
-  console.info("[Email] OTP terkirim via Brevo SMTP:", {
-    to,
-    messageId: info.messageId,
-    accepted: info.accepted,
-    rejected: info.rejected,
-  });
+  try {
+    const response = await axios.post(BREVO_EMAIL_URL, body, {
+      headers: {
+        "api-key": apiKey,
+        "Content-Type": "application/json",
+      },
+      timeout: 15_000,
+    });
+
+    console.info("[Email] OTP terkirim via Brevo API:", {
+      to,
+      messageId: response.data?.messageId,
+    });
+  } catch (err: any) {
+    const status = err?.response?.status;
+    const message = err?.response?.data?.message || err?.message || "Gagal mengirim email OTP.";
+    console.error("[Email] Gagal kirim OTP via Brevo API:", {
+      to,
+      status,
+      message,
+    });
+    throw new Error(`Brevo API error${status ? ` (${status})` : ""}: ${message}`);
+  }
 }
