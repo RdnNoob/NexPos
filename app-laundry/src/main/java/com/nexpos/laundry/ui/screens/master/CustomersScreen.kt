@@ -121,8 +121,9 @@ fun CustomersScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(customer.name, fontWeight = FontWeight.SemiBold)
                                 Text(customer.phone ?: "-", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                if (!customer.address.isNullOrBlank()) {
-                                    Text(customer.address, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                val customerAddress = customer.address
+                                if (!customerAddress.isNullOrBlank()) {
+                                    Text(customerAddress, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }
