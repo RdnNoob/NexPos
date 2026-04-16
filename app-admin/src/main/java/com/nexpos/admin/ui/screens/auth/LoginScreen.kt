@@ -1,5 +1,6 @@
 package com.nexpos.admin.ui.screens.auth
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -22,12 +23,14 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onNavigateToRegister: () -> Unit,
     onNavigateToForgotPassword: () -> Unit = {},
+    onNavigateToSuperAdmin: () -> Unit = {},
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var hasNavigated by remember { mutableStateOf(false) }
+    var logoTapCount by remember { mutableStateOf(0) }
 
     LaunchedEffect(state.isSuccess) {
         if (state.isSuccess && !hasNavigated) {
@@ -51,10 +54,17 @@ fun LoginScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "NexPos Admin",
+            text = "NexPos Owners",
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.clickable {
+                logoTapCount += 1
+                if (logoTapCount >= 5) {
+                    logoTapCount = 0
+                    onNavigateToSuperAdmin()
+                }
+            }
         )
         Text(
             text = "Masuk ke dashboard owner",

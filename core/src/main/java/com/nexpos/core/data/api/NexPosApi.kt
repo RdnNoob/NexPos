@@ -77,4 +77,50 @@ interface NexPosApi {
         @Header("Authorization") token: String,
         @Body request: UpdateStatusRequest
     ): Response<TransactionInfo>
+
+    @GET("/api/notifications")
+    suspend fun getNotifications(@Header("Authorization") token: String): Response<NotificationListResponse>
+
+    @POST("/api/notifications/{id}/read")
+    suspend fun markNotificationRead(
+        @Header("Authorization") token: String,
+        @Path("id") notificationId: Int
+    ): Response<MessageResponse>
+
+    @POST("/api/super-admin/login")
+    suspend fun superAdminLogin(@Body request: SuperAdminLoginRequest): Response<SuperAdminLoginResponse>
+
+    @GET("/api/super-admin/stats")
+    suspend fun getSuperAdminStats(@Header("Authorization") token: String): Response<SuperAdminStatsResponse>
+
+    @GET("/api/super-admin/users")
+    suspend fun getSuperAdminUsers(@Header("Authorization") token: String): Response<SuperAdminUsersResponse>
+
+    @GET("/api/super-admin/otp-requests")
+    suspend fun getSuperAdminOtpRequests(@Header("Authorization") token: String): Response<OtpRequestsResponse>
+
+    @POST("/api/super-admin/users/{id}/ban")
+    suspend fun banSuperAdminUser(
+        @Header("Authorization") token: String,
+        @Path("id") userId: String,
+        @Body request: BanUserRequest
+    ): Response<MessageResponse>
+
+    @POST("/api/super-admin/users/{id}/unban")
+    suspend fun unbanSuperAdminUser(
+        @Header("Authorization") token: String,
+        @Path("id") userId: String
+    ): Response<MessageResponse>
+
+    @DELETE("/api/super-admin/users/{id}")
+    suspend fun deleteSuperAdminUser(
+        @Header("Authorization") token: String,
+        @Path("id") userId: String
+    ): Response<MessageResponse>
+
+    @POST("/api/super-admin/notifications")
+    suspend fun createSuperAdminNotification(
+        @Header("Authorization") token: String,
+        @Body request: CreateNotificationRequest
+    ): Response<MessageResponse>
 }

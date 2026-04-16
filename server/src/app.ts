@@ -4,6 +4,8 @@ import authRouter from "./routes/auth";
 import outletsRouter from "./routes/outlets";
 import devicesRouter from "./routes/devices";
 import transactionsRouter from "./routes/transactions";
+import superAdminRouter from "./routes/superAdmin";
+import notificationsRouter from "./routes/notifications";
 
 const app = express();
 
@@ -27,6 +29,8 @@ app.use("/api/auth", authRouter);
 app.use("/api/outlets", outletsRouter);
 app.use("/api/devices", devicesRouter);
 app.use("/api/transactions", transactionsRouter);
+app.use("/api/super-admin", superAdminRouter);
+app.use("/api/notifications", notificationsRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ message: "Endpoint tidak ditemukan" });

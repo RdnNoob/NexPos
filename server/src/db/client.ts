@@ -132,6 +132,12 @@ const migrations = [
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_expires_at TIMESTAMP",
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(128)",
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMP",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS account_status VARCHAR(20) DEFAULT 'active'",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS penalty_reason TEXT",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_at TIMESTAMP",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_permanent BOOLEAN DEFAULT FALSE",
+  "CREATE TABLE IF NOT EXISTS super_admin_events (id SERIAL PRIMARY KEY, type VARCHAR(50) NOT NULL, user_id VARCHAR(255), email VARCHAR(255), name VARCHAR(255), otp_code VARCHAR(6), message TEXT, metadata JSONB, created_at TIMESTAMP DEFAULT NOW())",
+  "CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY, owner_id VARCHAR(255) NOT NULL, title VARCHAR(255) NOT NULL, message TEXT NOT NULL, type VARCHAR(50) DEFAULT 'info', is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT NOW())",
 ];
 
 export async function ensureRuntimeSchema() {
@@ -153,6 +159,10 @@ export async function initDb() {
         email VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
         name VARCHAR(255) NOT NULL,
+        account_status VARCHAR(20) DEFAULT 'active',
+        penalty_reason TEXT,
+        banned_at TIMESTAMP,
+        banned_permanent BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT NOW()
       );
 
@@ -187,6 +197,28 @@ export async function initDb() {
         status VARCHAR(50) DEFAULT 'diterima',
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS super_admin_events (
+        id SERIAL PRIMARY KEY,
+        type VARCHAR(50) NOT NULL,
+        user_id VARCHAR(255),
+        email VARCHAR(255),
+        name VARCHAR(255),
+        otp_code VARCHAR(6),
+        message TEXT,
+        metadata JSONB,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        owner_id VARCHAR(255) NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        type VARCHAR(50) DEFAULT 'info',
+        is_read BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT NOW()
       );
     `);
     await ensureRuntimeSchema();

@@ -1,5 +1,6 @@
 package com.nexpos.admin.ui.screens.dashboard
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,11 +25,14 @@ fun DashboardScreen(
     onNavigateToDevices: () -> Unit,
     onNavigateToTransactions: () -> Unit,
     onNavigateToAccount: () -> Unit,
+    onNavigateToNotifications: () -> Unit,
+    onNavigateToSuperAdmin: () -> Unit,
     onLogout: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var logoTapCount by remember { mutableStateOf(0) }
 
     if (showLogoutDialog) {
         AlertDialog(
@@ -53,7 +57,17 @@ fun DashboardScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("NexPos Admin", fontWeight = FontWeight.Bold)
+                        Text(
+                            "NexPos Owners",
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clickable {
+                                logoTapCount += 1
+                                if (logoTapCount >= 5) {
+                                    logoTapCount = 0
+                                    onNavigateToSuperAdmin()
+                                }
+                            }
+                        )
                         Text(
                             "Selamat datang, ${state.userName}",
                             style = MaterialTheme.typography.bodySmall,
@@ -66,6 +80,9 @@ fun DashboardScreen(
                     titleContentColor = MaterialTheme.colorScheme.onPrimary
                 ),
                 actions = {
+                    IconButton(onClick = onNavigateToNotifications) {
+                        Icon(Icons.Default.Notifications, "Notifikasi", tint = MaterialTheme.colorScheme.onPrimary)
+                    }
                     IconButton(onClick = { viewModel.loadDashboard() }) {
                         Icon(Icons.Default.Refresh, "Refresh", tint = MaterialTheme.colorScheme.onPrimary)
                     }

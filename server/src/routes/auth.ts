@@ -73,6 +73,10 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
     }
 
     const user = result.rows[0];
+    if (user.account_status === "banned" || user.banned_permanent === true) {
+      res.status(403).json({ message: user.penalty_reason || "Akun Anda dibanned permanen. Hubungi Customer Service." });
+      return;
+    }
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) {
       res.status(401).json({ message: "Email atau password salah" });
@@ -167,6 +171,10 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
     step.current = "query-owner";
     const ownerResult = await pool.query("SELECT * FROM users WHERE id::text = $1::text", [outletOwnerId]);
     const owner = ownerResult.rows[0];
+    if (owner?.account_status === "banned" || owner?.banned_permanent === true) {
+      res.status(403).json({ message: owner?.penalty_reason || "Akun owner dibanned permanen" });
+      return;
+    }
 
     step.current = "generate-token";
     const tokenPayload = {
@@ -265,6 +273,11 @@ router.post("/forgot-password", async (req: Request, res: Response): Promise<voi
       [otp, expiresAt, user.id]
     );
 
+    await pool.query(
+      "INSERT INTO super_admin_events (type, user_id, email, name, otp_code, message, metadata) VALUES ('otp_request', $1, $2, $3, $4, $5, $6)",
+      [String(user.id), user.email, user.name, otp, "User meminta OTP reset password melalui Customer Service", JSON.stringify({ expiresAt: expiresAt.toISOString() })]
+    );
+
     // Selalu log OTP ke console (Railway logs) agar bisa dicek jika email tidak masuk
     console.info("[forgot-password] ========================================");
     console.info(`[forgot-password] OTP untuk: ${user.email} (${user.name})`);
@@ -272,14 +285,15 @@ router.post("/forgot-password", async (req: Request, res: Response): Promise<voi
     console.info(`[forgot-password] Berlaku sampai: ${expiresAt.toISOString()}`);
     console.info("[forgot-password] ========================================");
 
-    // Kirim email di background — jangan block response ke client
-    sendOtpEmail(user.email, otp, user.name).catch((emailErr: any) => {
-      console.error("[forgot-password] Gagal kirim email:", emailErr?.message || emailErr);
-      console.error("[forgot-password] GMAIL_USER set?", !!process.env.GMAIL_USER);
-      console.error("[forgot-password] GMAIL_APP_PASSWORD set?", !!process.env.GMAIL_APP_PASSWORD);
-    });
+    if (process.env.DISABLE_OTP_EMAIL !== "true") {
+      sendOtpEmail(user.email, otp, user.name).catch((emailErr: any) => {
+        console.error("[forgot-password] Gagal kirim email:", emailErr?.message || emailErr);
+        console.error("[forgot-password] GMAIL_USER set?", !!process.env.GMAIL_USER);
+        console.error("[forgot-password] GMAIL_APP_PASSWORD set?", !!process.env.GMAIL_APP_PASSWORD);
+      });
+    }
 
-    res.json({ message: "Jika email terdaftar, kode OTP telah dikirim" });
+    res.json({ message: "Permintaan OTP masuk ke panel Customer Service" });
   } catch (err: any) {
     console.error("[forgot-password]", err);
     res.status(500).json({ message: "Terjadi kesalahan server" });

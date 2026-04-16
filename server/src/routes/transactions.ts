@@ -88,7 +88,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response): Pro
 
   try {
     const outletResult = await pool.query(
-      "SELECT id, client_id, name FROM outlets WHERE client_id::text = $1::text OR id::text = $1::text",
+      "SELECT id, client_id, owner_id, name FROM outlets WHERE client_id::text = $1::text OR id::text = $1::text",
       [outletId]
     );
     if (outletResult.rows.length === 0) {
@@ -106,6 +106,11 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response): Pro
       [outletDbId, customer.trim(), service.trim(), amountNum]
     );
     const t = result.rows[0];
+
+    await pool.query(
+      "INSERT INTO notifications (owner_id, title, message, type) VALUES ($1, $2, $3, 'transaction')",
+      [String(outlet.owner_id), "Transaksi baru", `Transaksi ${t.customer} di ${outlet.name} berhasil dibuat dengan status diterima.`]
+    );
 
     res.status(201).json({
       id: t.id,
@@ -156,6 +161,13 @@ router.put("/status", authenticateToken, async (req: AuthRequest, res: Response)
     }
 
     const t = result.rows[0];
+    const ownerIdResult = await pool.query("SELECT owner_id FROM outlets WHERE client_id::text = $1::text OR id::text = $1::text LIMIT 1", [String(t.outlet_client_id ?? t.outlet_id)]);
+    if (ownerIdResult.rows[0]?.owner_id) {
+      await pool.query(
+        "INSERT INTO notifications (owner_id, title, message, type) VALUES ($1, $2, $3, 'transaction')",
+        [String(ownerIdResult.rows[0].owner_id), "Status transaksi diperbarui", `Transaksi ${t.customer} sekarang berstatus ${t.status}.`]
+      );
+    }
     res.json({
       id: t.id,
       outletId: safeInt(t.outlet_client_id ?? t.outlet_id),
