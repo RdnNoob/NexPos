@@ -109,7 +109,7 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
 
     step.current = "query-outlet";
     const outletResult = await pool.query(
-      "SELECT * FROM outlets WHERE UPPER(TRIM(activation_code)) = $1",
+      "SELECT * FROM outlets WHERE UPPER(TRIM(activation_code)) = $1::text",
       [normalizedActivationCode]
     );
     if (outletResult.rows.length === 0) {
@@ -123,7 +123,7 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
 
     step.current = "query-existing-device";
     const existingDevice = await pool.query(
-      "SELECT * FROM devices WHERE device_id = $1",
+      "SELECT * FROM devices WHERE device_id::text = $1::text",
       [normalizedDeviceId]
     );
 
@@ -144,20 +144,20 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
     if (existingDevice.rows.length > 0) {
       step.current = "update-device";
       const updated = await pool.query(
-        "UPDATE devices SET status = 'online', last_seen = NOW(), name = $1, device_name = $1, outlet_id = $2, owner_id = $3 WHERE device_id = $4 RETURNING *",
-        [normalizedDeviceName, outletDbId, outletOwnerId, normalizedDeviceId]
+        "UPDATE devices SET status = 'online', last_seen = NOW(), name = $1::text, device_name = $2::text, outlet_id = $3::text, owner_id = $4::text WHERE device_id::text = $5::text RETURNING *",
+        [normalizedDeviceName, normalizedDeviceName, outletDbId, outletOwnerId, normalizedDeviceId]
       );
       device = updated.rows[0];
       if (!device) {
         step.current = "update-device-fallback";
-        const fallback = await pool.query("SELECT * FROM devices WHERE device_id = $1", [normalizedDeviceId]);
+        const fallback = await pool.query("SELECT * FROM devices WHERE device_id::text = $1::text", [normalizedDeviceId]);
         device = fallback.rows[0];
       }
     } else {
       step.current = "insert-device";
       const inserted = await pool.query(
-        "INSERT INTO devices (owner_id, outlet_id, name, device_name, device_id, status, last_seen) VALUES ($1, $2, $3, $3, $4, 'online', NOW()) RETURNING *",
-        [outletOwnerId, outletDbId, normalizedDeviceName, normalizedDeviceId]
+        "INSERT INTO devices (owner_id, outlet_id, name, device_name, device_id, status, last_seen) VALUES ($1::text, $2::text, $3::text, $4::text, $5::text, 'online', NOW()) RETURNING *",
+        [outletOwnerId, outletDbId, normalizedDeviceName, normalizedDeviceName, normalizedDeviceId]
       );
       device = inserted.rows[0];
     }
@@ -203,7 +203,7 @@ router.post("/login-device", async (req: Request, res: Response): Promise<void> 
       },
     });
   } catch (err: any) {
-    console.error(`[login-device:${step.current}] ERROR:`, err?.message ?? err);
+    console.error(`[login-device:${step.current}] ERROR:`, err);
     res.status(500).json({ message: "Terjadi kesalahan server, coba lagi nanti" });
   }
 });
