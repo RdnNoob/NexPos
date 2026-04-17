@@ -8,6 +8,7 @@ import customersRouter from "./routes/customers";
 import transactionsRouter from "./routes/transactions";
 import superAdminRouter from "./routes/superAdmin";
 import notificationsRouter from "./routes/notifications";
+import reportsRouter from "./routes/reports";
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.use("/api/customers", customersRouter);
 app.use("/api/transactions", transactionsRouter);
 app.use("/api/super-admin", superAdminRouter);
 app.use("/api/notifications", notificationsRouter);
+app.use("/api/reports", reportsRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ message: "Endpoint tidak ditemukan" });
