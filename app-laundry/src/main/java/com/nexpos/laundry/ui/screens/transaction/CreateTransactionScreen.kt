@@ -114,7 +114,7 @@ fun CreateTransactionScreen(
                                 Column {
                                     Text(customer.name, fontWeight = FontWeight.Medium)
                                     if (!customer.phone.isNullOrBlank()) {
-                                        Text(customer.phone, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(customer.phone ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 }
                             },

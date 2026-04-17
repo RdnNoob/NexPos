@@ -29,7 +29,7 @@ class LaundryMasterDataViewModel @Inject constructor(
     private val _state = MutableStateFlow(LaundryMasterDataState())
     val state: StateFlow<LaundryMasterDataState> = _state
 
-    private fun token(): String? = session.getToken()?.let { "Bearer $it" }
+    private suspend fun token(): String? = session.getToken()?.let { "Bearer $it" }
 
     fun loadServices() {
         viewModelScope.launch {
