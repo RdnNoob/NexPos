@@ -43,6 +43,12 @@ data class CreateServiceRequest(
     val unit: String
 )
 
+data class UpdateServiceRequest(
+    val name: String,
+    val price: Int,
+    val unit: String
+)
+
 data class CustomerInfo(
     val id: String,
     val outlet_id: String? = null,
@@ -63,6 +69,12 @@ data class CustomerResponse(
 
 data class CreateCustomerRequest(
     val outletId: Int?,
+    val name: String,
+    val phone: String,
+    val address: String
+)
+
+data class UpdateCustomerRequest(
     val name: String,
     val phone: String,
     val address: String

@@ -84,6 +84,19 @@ interface NexPosApi {
         @Body request: CreateServiceRequest
     ): Response<ServiceResponse>
 
+    @PUT("/api/services/{id}")
+    suspend fun updateService(
+        @Header("Authorization") token: String,
+        @Path("id") serviceId: String,
+        @Body request: UpdateServiceRequest
+    ): Response<ServiceResponse>
+
+    @DELETE("/api/services/{id}")
+    suspend fun deleteService(
+        @Header("Authorization") token: String,
+        @Path("id") serviceId: String
+    ): Response<MessageResponse>
+
     @GET("/api/customers")
     suspend fun getCustomers(
         @Header("Authorization") token: String,
@@ -95,6 +108,19 @@ interface NexPosApi {
         @Header("Authorization") token: String,
         @Body request: CreateCustomerRequest
     ): Response<CustomerResponse>
+
+    @PUT("/api/customers/{id}")
+    suspend fun updateCustomer(
+        @Header("Authorization") token: String,
+        @Path("id") customerId: String,
+        @Body request: UpdateCustomerRequest
+    ): Response<CustomerResponse>
+
+    @DELETE("/api/customers/{id}")
+    suspend fun deleteCustomer(
+        @Header("Authorization") token: String,
+        @Path("id") customerId: String
+    ): Response<MessageResponse>
 
     @PUT("/api/transactions/status")
     suspend fun updateTransactionStatus(

@@ -4,10 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nexpos.core.data.api.NexPosApi
 import com.nexpos.core.data.local.SessionManager
-import com.nexpos.core.data.model.CreateCustomerRequest
-import com.nexpos.core.data.model.CreateServiceRequest
-import com.nexpos.core.data.model.CustomerInfo
-import com.nexpos.core.data.model.ServiceInfo
+import com.nexpos.core.data.model.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,28 +29,25 @@ class LaundryMasterDataViewModel @Inject constructor(
     private val _state = MutableStateFlow(LaundryMasterDataState())
     val state: StateFlow<LaundryMasterDataState> = _state
 
+    private fun token(): String? = session.getToken()?.let { "Bearer $it" }
+
     fun loadServices() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
-                val tokenRaw = session.getToken()
-                if (tokenRaw.isNullOrEmpty()) {
+                val t = token() ?: run {
                     _state.value = _state.value.copy(isLoading = false, error = "Sesi tidak valid")
                     return@launch
                 }
-                val res = api.getServices("Bearer $tokenRaw", session.getOutletId())
+                val res = api.getServices(t, session.getOutletId())
                 _state.value = if (res.isSuccessful) {
                     _state.value.copy(isLoading = false, services = res.body()?.services ?: emptyList())
                 } else {
                     _state.value.copy(isLoading = false, error = "Gagal memuat layanan (${res.code()})")
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: IOException) {
-                _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server")
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(isLoading = false, error = "Gagal memuat layanan: ${e.message?.take(120) ?: e.javaClass.simpleName}")
-            }
+            } catch (e: CancellationException) { throw e
+            } catch (e: IOException) { _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server")
+            } catch (e: Exception) { _state.value = _state.value.copy(isLoading = false, error = "Error: ${e.message?.take(80)}") }
         }
     }
 
@@ -65,29 +59,68 @@ class LaundryMasterDataViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
-                val tokenRaw = session.getToken()
-                if (tokenRaw.isNullOrEmpty()) {
+                val t = token() ?: run {
                     _state.value = _state.value.copy(isLoading = false, error = "Sesi tidak valid")
                     return@launch
                 }
                 val priceValue = price.filter { it.isDigit() }.toIntOrNull() ?: 0
-                val res = api.createService(
-                    "Bearer $tokenRaw",
-                    CreateServiceRequest(session.getOutletId(), name.trim(), priceValue, unit.trim())
-                )
+                val res = api.createService(t, CreateServiceRequest(session.getOutletId(), name.trim(), priceValue, unit.trim()))
                 if (res.isSuccessful) {
                     _state.value = _state.value.copy(isLoading = false, successMessage = "Layanan berhasil ditambahkan")
                     loadServices()
                 } else {
                     _state.value = _state.value.copy(isLoading = false, error = "Gagal menyimpan layanan (${res.code()})")
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: IOException) {
-                _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server")
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(isLoading = false, error = "Gagal menyimpan layanan: ${e.message?.take(120) ?: e.javaClass.simpleName}")
-            }
+            } catch (e: CancellationException) { throw e
+            } catch (e: IOException) { _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server")
+            } catch (e: Exception) { _state.value = _state.value.copy(isLoading = false, error = "Error: ${e.message?.take(80)}") }
+        }
+    }
+
+    fun updateService(id: String, name: String, price: String, unit: String) {
+        if (name.isBlank() || price.isBlank() || unit.isBlank()) {
+            _state.value = _state.value.copy(error = "Nama, harga, dan satuan wajib diisi")
+            return
+        }
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true, error = null)
+            try {
+                val t = token() ?: run {
+                    _state.value = _state.value.copy(isLoading = false, error = "Sesi tidak valid")
+                    return@launch
+                }
+                val priceValue = price.filter { it.isDigit() }.toIntOrNull() ?: 0
+                val res = api.updateService(t, id, UpdateServiceRequest(name.trim(), priceValue, unit.trim()))
+                if (res.isSuccessful) {
+                    _state.value = _state.value.copy(isLoading = false, successMessage = "Layanan berhasil diperbarui")
+                    loadServices()
+                } else {
+                    _state.value = _state.value.copy(isLoading = false, error = "Gagal memperbarui layanan (${res.code()})")
+                }
+            } catch (e: CancellationException) { throw e
+            } catch (e: IOException) { _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server")
+            } catch (e: Exception) { _state.value = _state.value.copy(isLoading = false, error = "Error: ${e.message?.take(80)}") }
+        }
+    }
+
+    fun deleteService(id: String) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true, error = null)
+            try {
+                val t = token() ?: run {
+                    _state.value = _state.value.copy(isLoading = false, error = "Sesi tidak valid")
+                    return@launch
+                }
+                val res = api.deleteService(t, id)
+                if (res.isSuccessful) {
+                    _state.value = _state.value.copy(isLoading = false, successMessage = "Layanan dihapus")
+                    loadServices()
+                } else {
+                    _state.value = _state.value.copy(isLoading = false, error = "Gagal menghapus layanan (${res.code()})")
+                }
+            } catch (e: CancellationException) { throw e
+            } catch (e: IOException) { _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server")
+            } catch (e: Exception) { _state.value = _state.value.copy(isLoading = false, error = "Error: ${e.message?.take(80)}") }
         }
     }
 
@@ -95,24 +128,19 @@ class LaundryMasterDataViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
-                val tokenRaw = session.getToken()
-                if (tokenRaw.isNullOrEmpty()) {
+                val t = token() ?: run {
                     _state.value = _state.value.copy(isLoading = false, error = "Sesi tidak valid")
                     return@launch
                 }
-                val res = api.getCustomers("Bearer $tokenRaw", session.getOutletId())
+                val res = api.getCustomers(t, session.getOutletId())
                 _state.value = if (res.isSuccessful) {
                     _state.value.copy(isLoading = false, customers = res.body()?.customers ?: emptyList())
                 } else {
                     _state.value.copy(isLoading = false, error = "Gagal memuat pelanggan (${res.code()})")
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: IOException) {
-                _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server")
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(isLoading = false, error = "Gagal memuat pelanggan: ${e.message?.take(120) ?: e.javaClass.simpleName}")
-            }
+            } catch (e: CancellationException) { throw e
+            } catch (e: IOException) { _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server")
+            } catch (e: Exception) { _state.value = _state.value.copy(isLoading = false, error = "Error: ${e.message?.take(80)}") }
         }
     }
 
@@ -124,28 +152,66 @@ class LaundryMasterDataViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
-                val tokenRaw = session.getToken()
-                if (tokenRaw.isNullOrEmpty()) {
+                val t = token() ?: run {
                     _state.value = _state.value.copy(isLoading = false, error = "Sesi tidak valid")
                     return@launch
                 }
-                val res = api.createCustomer(
-                    "Bearer $tokenRaw",
-                    CreateCustomerRequest(session.getOutletId(), name.trim(), phone.trim(), address.trim())
-                )
+                val res = api.createCustomer(t, CreateCustomerRequest(session.getOutletId(), name.trim(), phone.trim(), address.trim()))
                 if (res.isSuccessful) {
                     _state.value = _state.value.copy(isLoading = false, successMessage = "Pelanggan berhasil ditambahkan")
                     loadCustomers()
                 } else {
                     _state.value = _state.value.copy(isLoading = false, error = "Gagal menyimpan pelanggan (${res.code()})")
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: IOException) {
-                _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server")
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(isLoading = false, error = "Gagal menyimpan pelanggan: ${e.message?.take(120) ?: e.javaClass.simpleName}")
-            }
+            } catch (e: CancellationException) { throw e
+            } catch (e: IOException) { _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server")
+            } catch (e: Exception) { _state.value = _state.value.copy(isLoading = false, error = "Error: ${e.message?.take(80)}") }
+        }
+    }
+
+    fun updateCustomer(id: String, name: String, phone: String, address: String) {
+        if (name.isBlank()) {
+            _state.value = _state.value.copy(error = "Nama pelanggan wajib diisi")
+            return
+        }
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true, error = null)
+            try {
+                val t = token() ?: run {
+                    _state.value = _state.value.copy(isLoading = false, error = "Sesi tidak valid")
+                    return@launch
+                }
+                val res = api.updateCustomer(t, id, UpdateCustomerRequest(name.trim(), phone.trim(), address.trim()))
+                if (res.isSuccessful) {
+                    _state.value = _state.value.copy(isLoading = false, successMessage = "Pelanggan berhasil diperbarui")
+                    loadCustomers()
+                } else {
+                    _state.value = _state.value.copy(isLoading = false, error = "Gagal memperbarui pelanggan (${res.code()})")
+                }
+            } catch (e: CancellationException) { throw e
+            } catch (e: IOException) { _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server")
+            } catch (e: Exception) { _state.value = _state.value.copy(isLoading = false, error = "Error: ${e.message?.take(80)}") }
+        }
+    }
+
+    fun deleteCustomer(id: String) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true, error = null)
+            try {
+                val t = token() ?: run {
+                    _state.value = _state.value.copy(isLoading = false, error = "Sesi tidak valid")
+                    return@launch
+                }
+                val res = api.deleteCustomer(t, id)
+                if (res.isSuccessful) {
+                    _state.value = _state.value.copy(isLoading = false, successMessage = "Pelanggan dihapus")
+                    loadCustomers()
+                } else {
+                    _state.value = _state.value.copy(isLoading = false, error = "Gagal menghapus pelanggan (${res.code()})")
+                }
+            } catch (e: CancellationException) { throw e
+            } catch (e: IOException) { _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server")
+            } catch (e: Exception) { _state.value = _state.value.copy(isLoading = false, error = "Error: ${e.message?.take(80)}") }
         }
     }
 
