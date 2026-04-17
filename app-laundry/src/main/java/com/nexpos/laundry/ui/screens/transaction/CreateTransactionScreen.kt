@@ -7,6 +7,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.Divider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -126,7 +127,7 @@ fun CreateTransactionScreen(
                 }
             }
 
-            HorizontalDivider()
+            Divider()
             Text("Pilih Layanan", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
             ExposedDropdownMenuBox(
@@ -203,7 +204,7 @@ fun CreateTransactionScreen(
                 }
             }
 
-            HorizontalDivider()
+            Divider()
             Text("Jumlah", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
             OutlinedTextField(
