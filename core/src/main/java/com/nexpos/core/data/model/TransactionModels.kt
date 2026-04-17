@@ -13,9 +13,10 @@ data class TransactionInfo(
 )
 
 data class CreateTransactionRequest(
-    val customer: String,
-    val service: String,
-    val amount: Double
+    val outletId: Int,
+    val customerId: String,
+    val serviceId: String,
+    val quantity: Int
 )
 
 data class ServiceInfo(

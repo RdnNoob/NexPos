@@ -25,6 +25,9 @@ fun DevicesScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var deviceToLogout by remember { mutableStateOf<DeviceInfo?>(null) }
+    var deviceToDelete by remember { mutableStateOf<DeviceInfo?>(null) }
+    var deviceToEdit by remember { mutableStateOf<DeviceInfo?>(null) }
+    var editName by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         viewModel.loadDevices()
@@ -34,11 +37,12 @@ fun DevicesScreen(
         if (state.message != null) viewModel.clearMessage()
     }
 
+    // Dialog Force Logout
     deviceToLogout?.let { device ->
         AlertDialog(
             onDismissRequest = { deviceToLogout = null },
             title = { Text("Force Logout Device") },
-            text = { Text("Yakin ingin paksa logout device '${device.deviceName}'? Device akan otomatis keluar saat request berikutnya.") },
+            text = { Text("Yakin ingin paksa logout device '${device.deviceName}'? Token device akan dihapus dan device harus login ulang.") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -50,6 +54,56 @@ fun DevicesScreen(
             },
             dismissButton = {
                 TextButton(onClick = { deviceToLogout = null }) { Text("Batal") }
+            }
+        )
+    }
+
+    // Dialog Hapus Device
+    deviceToDelete?.let { device ->
+        AlertDialog(
+            onDismissRequest = { deviceToDelete = null },
+            title = { Text("Hapus Device") },
+            text = { Text("Yakin ingin menghapus device '${device.deviceName}'? Tindakan ini tidak dapat dibatalkan.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteDevice(device.id)
+                        deviceToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Hapus") }
+            },
+            dismissButton = {
+                TextButton(onClick = { deviceToDelete = null }) { Text("Batal") }
+            }
+        )
+    }
+
+    // Dialog Edit Nama Device
+    deviceToEdit?.let { device ->
+        AlertDialog(
+            onDismissRequest = { deviceToEdit = null },
+            title = { Text("Edit Nama Device") },
+            text = {
+                OutlinedTextField(
+                    value = editName,
+                    onValueChange = { editName = it },
+                    label = { Text("Nama Device") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.updateDevice(device.id, editName)
+                        deviceToEdit = null
+                    },
+                    enabled = editName.isNotBlank()
+                ) { Text("Simpan") }
+            },
+            dismissButton = {
+                TextButton(onClick = { deviceToEdit = null }) { Text("Batal") }
             }
         )
     }
@@ -105,43 +159,92 @@ fun DevicesScreen(
                         }
                     }
                 }
+
+                state.error?.let { err ->
+                    item {
+                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                            Text(err, modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onErrorContainer)
+                        }
+                    }
+                }
+
+                state.message?.let { msg ->
+                    item {
+                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+                            Text(msg, modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSecondaryContainer)
+                        }
+                    }
+                }
+
                 items(state.devices) { device ->
                     Card(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.PhoneAndroid,
-                                null,
-                                tint = if (device.status == "online") MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(32.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(device.deviceName, fontWeight = FontWeight.Bold)
-                                Text(
-                                    device.outletName ?: "Outlet tidak diketahui",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.PhoneAndroid,
+                                    null,
+                                    tint = if (device.status == "online") MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(32.dp)
                                 )
-                                device.lastSeen?.let {
-                                    Text("Terakhir: $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-                            Column(horizontalAlignment = Alignment.End) {
-                                StatusChip(status = device.status)
-                                Spacer(modifier = Modifier.height(8.dp))
-                                if (device.status == "online") {
-                                    OutlinedButton(
-                                        onClick = { deviceToLogout = device },
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                                    ) {
-                                        Icon(Icons.Default.Logout, null, modifier = Modifier.size(14.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Force Logout", style = MaterialTheme.typography.labelSmall)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(device.deviceName, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        device.outletName ?: "Outlet tidak diketahui",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    device.lastSeen?.let {
+                                        Text("Terakhir: $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
+                                }
+                                StatusChip(status = device.status)
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+                            HorizontalDivider()
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                // Tombol Edit
+                                OutlinedButton(
+                                    onClick = {
+                                        editName = device.deviceName
+                                        deviceToEdit = device
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(Icons.Default.Edit, null, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Edit", style = MaterialTheme.typography.labelSmall)
+                                }
+
+                                // Tombol Force Logout (semua device, online maupun offline)
+                                OutlinedButton(
+                                    onClick = { deviceToLogout = device },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(Icons.Default.Logout, null, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Force Logout", style = MaterialTheme.typography.labelSmall)
+                                }
+
+                                // Tombol Hapus
+                                OutlinedButton(
+                                    onClick = { deviceToDelete = device },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(Icons.Default.Delete, null, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Hapus", style = MaterialTheme.typography.labelSmall)
                                 }
                             }
                         }

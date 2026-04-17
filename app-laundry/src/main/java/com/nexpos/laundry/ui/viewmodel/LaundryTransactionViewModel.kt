@@ -59,8 +59,8 @@ class LaundryTransactionViewModel @Inject constructor(
         }
     }
 
-    fun createTransaction(customer: String, service: String, amount: String) {
-        if (customer.isBlank() || service.isBlank() || amount.isBlank()) {
+    fun createTransaction(customerId: String, serviceId: String, quantity: Int) {
+        if (customerId.isBlank() || serviceId.isBlank() || quantity <= 0) {
             _state.value = _state.value.copy(error = "Semua field wajib diisi")
             return
         }
@@ -73,19 +73,19 @@ class LaundryTransactionViewModel @Inject constructor(
                     return@launch
                 }
                 val token = "Bearer $tokenRaw"
-                val amountVal = amount.replace(",", "").replace(".", "").toDoubleOrNull()
-                if (amountVal == null || amountVal <= 0) {
-                    _state.value = _state.value.copy(isLoading = false, error = "Harga tidak valid")
+                val outletId = session.getOutletId()
+                if (outletId == null) {
+                    _state.value = _state.value.copy(isLoading = false, error = "Outlet tidak ditemukan, silakan login ulang")
                     return@launch
                 }
                 val res = api.createTransaction(
                     token,
-                    CreateTransactionRequest(customer.trim(), service.trim(), amountVal)
+                    CreateTransactionRequest(outletId, customerId, serviceId, quantity)
                 )
                 if (res.isSuccessful) {
                     _state.value = _state.value.copy(
                         isLoading = false,
-                        successMessage = "Transaksi untuk ${customer.trim()} berhasil dibuat!"
+                        successMessage = "Transaksi berhasil dibuat!"
                     )
                 } else {
                     val msg = when (res.code()) {

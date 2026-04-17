@@ -6,6 +6,7 @@ import com.nexpos.core.data.api.NexPosApi
 import com.nexpos.core.data.local.SessionManager
 import com.nexpos.core.data.model.DeviceInfo
 import com.nexpos.core.data.model.ForceLogoutRequest
+import com.nexpos.core.data.model.UpdateDeviceRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -87,6 +88,75 @@ class DeviceViewModel @Inject constructor(
             } catch (e: Exception) {
                 val detail = e.message?.take(120) ?: e.javaClass.simpleName
                 _state.value = _state.value.copy(error = "Gagal force logout: $detail")
+            }
+        }
+    }
+
+    fun deleteDevice(deviceId: Int) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(error = null)
+            try {
+                val tokenRaw = session.getToken()
+                if (tokenRaw.isNullOrEmpty()) {
+                    _state.value = _state.value.copy(error = "Sesi tidak valid")
+                    return@launch
+                }
+                val token = "Bearer $tokenRaw"
+                val res = api.deleteDevice(token, deviceId)
+                if (res.isSuccessful) {
+                    _state.value = _state.value.copy(message = "Device berhasil dihapus")
+                    loadDevices()
+                } else {
+                    val msg = when (res.code()) {
+                        404 -> "Device tidak ditemukan"
+                        else -> "Gagal menghapus device (${res.code()})"
+                    }
+                    _state.value = _state.value.copy(error = msg)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IOException) {
+                _state.value = _state.value.copy(error = "Gagal terhubung ke server. Periksa koneksi internet.")
+            } catch (e: Exception) {
+                val detail = e.message?.take(120) ?: e.javaClass.simpleName
+                _state.value = _state.value.copy(error = "Gagal menghapus device: $detail")
+            }
+        }
+    }
+
+    fun updateDevice(deviceId: Int, newName: String) {
+        if (newName.isBlank()) {
+            _state.value = _state.value.copy(error = "Nama device tidak boleh kosong")
+            return
+        }
+        viewModelScope.launch {
+            _state.value = _state.value.copy(error = null)
+            try {
+                val tokenRaw = session.getToken()
+                if (tokenRaw.isNullOrEmpty()) {
+                    _state.value = _state.value.copy(error = "Sesi tidak valid")
+                    return@launch
+                }
+                val token = "Bearer $tokenRaw"
+                val res = api.updateDevice(token, deviceId, UpdateDeviceRequest(newName.trim()))
+                if (res.isSuccessful) {
+                    _state.value = _state.value.copy(message = "Nama device berhasil diperbarui")
+                    loadDevices()
+                } else {
+                    val msg = when (res.code()) {
+                        404 -> "Device tidak ditemukan"
+                        400 -> "Nama device tidak valid"
+                        else -> "Gagal memperbarui device (${res.code()})"
+                    }
+                    _state.value = _state.value.copy(error = msg)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IOException) {
+                _state.value = _state.value.copy(error = "Gagal terhubung ke server. Periksa koneksi internet.")
+            } catch (e: Exception) {
+                val detail = e.message?.take(120) ?: e.javaClass.simpleName
+                _state.value = _state.value.copy(error = "Gagal memperbarui device: $detail")
             }
         }
     }

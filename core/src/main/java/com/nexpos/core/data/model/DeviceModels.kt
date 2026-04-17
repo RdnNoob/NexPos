@@ -12,6 +12,10 @@ data class ForceLogoutRequest(
     val deviceId: Int
 )
 
+data class UpdateDeviceRequest(
+    val deviceName: String
+)
+
 data class MessageResponse(
     val message: String
 )

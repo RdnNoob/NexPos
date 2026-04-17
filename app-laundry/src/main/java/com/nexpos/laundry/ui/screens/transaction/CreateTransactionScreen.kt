@@ -267,9 +267,11 @@ fun CreateTransactionScreen(
             NexPosButton(
                 text = "Simpan Transaksi",
                 onClick = {
-                    val customer = selectedCustomer?.name ?: ""
-                    val service = selectedService?.name ?: ""
-                    txViewModel.createTransaction(customer, service, totalPrice.toString())
+                    val customer = selectedCustomer
+                    val service = selectedService
+                    if (customer != null && service != null && qty > 0) {
+                        txViewModel.createTransaction(customer.id, service.id, qty)
+                    }
                 },
                 isLoading = txState.isLoading,
                 enabled = selectedCustomer != null && selectedService != null && qty > 0

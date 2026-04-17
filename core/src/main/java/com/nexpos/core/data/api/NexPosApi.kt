@@ -60,6 +60,19 @@ interface NexPosApi {
         @Body request: ForceLogoutRequest
     ): Response<MessageResponse>
 
+    @PUT("/api/devices/{id}")
+    suspend fun updateDevice(
+        @Header("Authorization") token: String,
+        @Path("id") deviceId: Int,
+        @Body request: UpdateDeviceRequest
+    ): Response<MessageResponse>
+
+    @DELETE("/api/devices/{id}")
+    suspend fun deleteDevice(
+        @Header("Authorization") token: String,
+        @Path("id") deviceId: Int
+    ): Response<MessageResponse>
+
     @GET("/api/transactions")
     suspend fun getTransactions(
         @Header("Authorization") token: String,

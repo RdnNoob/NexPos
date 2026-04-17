@@ -129,7 +129,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response): Pro
     const result = await pool.query(
       `INSERT INTO transactions
          (outlet_id, owner_id, customer_id, service_id, quantity, total_amount, status)
-       VALUES ($1::text, $2::text, $3::uuid, $4::uuid, $5::float, $6::integer, 'pending')
+       VALUES ($1::text, $2::text, $3::uuid, $4::uuid, $5::float, $6::integer, 'diterima')
        RETURNING *`,
       [outletId, req.userId, customerId, serviceId, qty, total_amount]
     );

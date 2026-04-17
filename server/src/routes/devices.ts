@@ -89,4 +89,52 @@ router.post("/force-logout", authenticateToken, async (req: AuthRequest, res: Re
   }
 });
 
+router.put("/:id", authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { id } = req.params;
+  const { deviceName } = req.body;
+
+  if (!deviceName || !deviceName.trim()) {
+    res.status(400).json({ message: "Nama device wajib diisi" });
+    return;
+  }
+
+  try {
+    const result = await pool.query(
+      "UPDATE devices SET device_name = $1 WHERE id = $2 AND owner_id::text = $3::text RETURNING id, device_name",
+      [deviceName.trim(), id, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ message: "Device tidak ditemukan" });
+      return;
+    }
+
+    res.json({ message: "Nama device berhasil diperbarui" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Terjadi kesalahan server" });
+  }
+});
+
+router.delete("/:id", authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      "DELETE FROM devices WHERE id = $1 AND owner_id::text = $2::text RETURNING id",
+      [id, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ message: "Device tidak ditemukan" });
+      return;
+    }
+
+    res.json({ message: "Device berhasil dihapus" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Terjadi kesalahan server" });
+  }
+});
+
 export default router;
