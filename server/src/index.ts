@@ -25,6 +25,16 @@ async function startServer() {
       if (result.rowCount && result.rowCount > 0) {
         console.log(`[HeartbeatJob] ${result.rowCount} device ditandai offline`);
       }
+
+      const expiredResult = await pool.query(
+        `UPDATE devices SET status = 'offline', refresh_token = NULL
+         WHERE last_seen IS NOT NULL
+         AND last_seen < NOW() - INTERVAL '2 days'
+         AND (status != 'offline' OR refresh_token IS NOT NULL)`
+      );
+      if (expiredResult.rowCount && expiredResult.rowCount > 0) {
+        console.log(`[HeartbeatJob] ${expiredResult.rowCount} device wajib login ulang karena offline lebih dari 2 hari`);
+      }
     } catch (err) {
       console.error("[HeartbeatJob] Gagal update device offline:", err);
     }
