@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL ?? "";
+const API_BASE = import.meta.env.VITE_API_URL ?? "https://nexpos-production-3747.up.railway.app";
 
 export function getToken(): string | null {
   return localStorage.getItem("nexpos_token");

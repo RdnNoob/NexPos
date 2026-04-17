@@ -28,7 +28,7 @@ npm run build
 
 Buat file `.env` di folder `web/`:
 ```
-VITE_API_URL=https://your-nexpos-server.com
+VITE_API_URL=https://nexpos-production-3747.up.railway.app
 ```
 
 Jika `VITE_API_URL` kosong, akan menggunakan URL relatif (cocok jika web di-serve dari server yang sama).
