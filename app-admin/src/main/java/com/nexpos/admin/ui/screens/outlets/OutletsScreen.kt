@@ -31,6 +31,8 @@ fun OutletsScreen(
     val clipboardManager = LocalClipboardManager.current
 
     var outletToDelete by remember { mutableStateOf<OutletInfo?>(null) }
+    var outletToRename by remember { mutableStateOf<OutletInfo?>(null) }
+    var renameText by remember { mutableStateOf("") }
 
     LaunchedEffect(state.successMessage) {
         if (state.successMessage != null) {
@@ -65,14 +67,46 @@ fun OutletsScreen(
                         viewModel.deleteOutlet(o.id, o.name)
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("Hapus")
-                }
+                ) { Text("Hapus") }
             },
             dismissButton = {
-                OutlinedButton(onClick = { outletToDelete = null }) {
-                    Text("Batal")
+                OutlinedButton(onClick = { outletToDelete = null }) { Text("Batal") }
+            }
+        )
+    }
+
+    if (outletToRename != null) {
+        AlertDialog(
+            onDismissRequest = { outletToRename = null },
+            icon = { Icon(Icons.Default.Edit, null, tint = MaterialTheme.colorScheme.primary) },
+            title = { Text("Ganti Nama Outlet") },
+            text = {
+                Column {
+                    Text("Masukkan nama baru untuk outlet \"${outletToRename!!.name}\":")
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = renameText,
+                        onValueChange = { renameText = it },
+                        label = { Text("Nama Outlet Baru") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val o = outletToRename!!
+                        if (renameText.isNotBlank()) {
+                            viewModel.updateOutlet(o.id, renameText)
+                            outletToRename = null
+                        }
+                    },
+                    enabled = renameText.isNotBlank()
+                ) { Text("Simpan") }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { outletToRename = null; renameText = "" }) { Text("Batal") }
             }
         )
     }
@@ -175,6 +209,20 @@ fun OutletsScreen(
                                     if (isDeleting) {
                                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                                     } else {
+                                        IconButton(
+                                            onClick = {
+                                                outletToRename = outlet
+                                                renameText = outlet.name
+                                            },
+                                            modifier = Modifier.size(36.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Edit,
+                                                contentDescription = "Ganti Nama",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
                                         IconButton(
                                             onClick = { outletToDelete = outlet },
                                             modifier = Modifier.size(36.dp)

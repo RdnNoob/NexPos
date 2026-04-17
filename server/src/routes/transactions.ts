@@ -4,7 +4,7 @@ import { authenticateToken, AuthRequest } from "../middleware/auth";
 
 const router = Router();
 
-const VALID_STATUSES = ["pending", "process", "done", "picked", "diterima", "dicuci", "disetrika", "selesai"];
+const VALID_STATUSES = ["pending", "process", "done", "picked", "diterima", "dicuci", "disetrika", "selesai", "dibatalkan"];
 
 function safeInt(value: unknown): number {
   const n = Number(value);
@@ -76,12 +76,15 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response): Prom
         outletId: safeInt(t.outlet_client_id ?? t.outlet_id),
         outletName: t.outlet_name ?? null,
         customerId: t.customer_id,
-        customerName: t.customer_name ?? t.customer ?? null,
+        customer: t.customer_name ?? t.customer ?? "",
+        customerName: t.customer_name ?? t.customer ?? "",
         serviceId: t.service_id,
+        service: t.service_name ?? t.service ?? null,
         serviceName: t.service_name ?? t.service ?? null,
         servicePrice: t.service_price ?? null,
         serviceUnit: t.service_unit ?? null,
         quantity: t.quantity ?? 1,
+        amount: parseFloat(t.total_amount ?? t.amount ?? 0),
         totalAmount: parseFloat(t.total_amount ?? t.amount ?? 0),
         status: t.status,
         createdAt: t.created_at,
@@ -206,6 +209,32 @@ router.put("/status", authenticateToken, async (req: AuthRequest, res: Response)
     }
 
     res.json({ transaction: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Terjadi kesalahan server" });
+  }
+});
+
+// DELETE /transactions/:id - hapus transaksi (owner atau device dengan outlet yang sama)
+router.delete("/:id", authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { id } = req.params;
+
+  try {
+    const check = await pool.query(
+      `SELECT t.id FROM transactions t
+       LEFT JOIN outlets o ON t.outlet_id::text = o.id::text OR t.outlet_id::text = o.client_id::text
+       WHERE t.id::text = $1::text
+         AND (t.owner_id::text = $2::text OR o.owner_id::text = $2::text)`,
+      [id, String(req.userId)]
+    );
+
+    if (check.rows.length === 0) {
+      res.status(404).json({ message: "Transaksi tidak ditemukan atau akses ditolak" });
+      return;
+    }
+
+    await pool.query("DELETE FROM transactions WHERE id::text = $1::text", [id]);
+    res.json({ message: "Transaksi berhasil dihapus" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Terjadi kesalahan server" });

@@ -42,6 +42,11 @@ data class VerifyOtpResponse(
     val resetToken: String
 )
 
+data class ChangePasswordRequest(
+    val currentPassword: String,
+    val newPassword: String
+)
+
 data class AuthResponse(
     val token: String,
     val user: UserInfo? = null,

@@ -1,14 +1,17 @@
 package com.nexpos.laundry.ui.screens.transaction
 
+import android.content.Intent
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -18,6 +21,31 @@ import com.nexpos.core.ui.components.StatusChip
 import com.nexpos.laundry.ui.viewmodel.LaundryTransactionViewModel
 
 val STATUS_FLOW = listOf("diterima", "dicuci", "disetrika", "selesai")
+private val STATUS_FILTER_OPTIONS = listOf(
+    null to "Semua",
+    "diterima" to "Diterima",
+    "dicuci" to "Dicuci",
+    "disetrika" to "Disetrika",
+    "selesai" to "Selesai"
+)
+
+private fun buildReceiptText(tx: TransactionInfo): String = buildString {
+    appendLine("================================")
+    appendLine("        NexPos Laundry          ")
+    appendLine("================================")
+    appendLine()
+    appendLine("No. Transaksi : #${tx.id}")
+    appendLine("Pelanggan     : ${tx.customer}")
+    appendLine("Layanan       : ${tx.service ?: "-"}")
+    appendLine("Harga         : Rp ${"%,.0f".format(tx.amount)}")
+    appendLine("Status        : ${tx.status.replaceFirstChar { it.uppercase() }}")
+    appendLine("Tanggal       : ${tx.createdAt.take(10)}")
+    appendLine()
+    appendLine("--------------------------------")
+    appendLine("   Terima kasih sudah menjadi   ")
+    appendLine("       pelanggan kami!           ")
+    appendLine("================================")
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -26,13 +54,30 @@ fun TransactionListScreen(
     viewModel: LaundryTransactionViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
     var selectedTx by remember { mutableStateOf<TransactionInfo?>(null) }
     var receiptTx by remember { mutableStateOf<TransactionInfo?>(null) }
+    var txToCancel by remember { mutableStateOf<TransactionInfo?>(null) }
+    var filterStatus by remember { mutableStateOf<String?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(Unit) { viewModel.loadTransactions() }
+    val displayedTransactions = remember(state.filteredTransactions, filterStatus) {
+        if (filterStatus == null) state.filteredTransactions
+        else state.filteredTransactions.filter { it.status.lowercase() == filterStatus }
+    }
 
     LaunchedEffect(state.successMessage) {
-        if (state.successMessage != null) viewModel.clearMessage()
+        state.successMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearMessage()
+        }
+    }
+
+    LaunchedEffect(state.error) {
+        state.error?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearMessage()
+        }
     }
 
     selectedTx?.let { tx ->
@@ -114,12 +159,46 @@ fun TransactionListScreen(
                 }
             },
             confirmButton = {
+                Button(onClick = {
+                    val struk = buildReceiptText(tx)
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, struk)
+                    }
+                    context.startActivity(Intent.createChooser(intent, "Bagikan Struk"))
+                }) { Text("Bagikan") }
+            },
+            dismissButton = {
                 TextButton(onClick = { receiptTx = null }) { Text("Tutup") }
             }
         )
     }
 
+    txToCancel?.let { tx ->
+        AlertDialog(
+            onDismissRequest = { txToCancel = null },
+            icon = { Icon(Icons.Default.Cancel, null, tint = MaterialTheme.colorScheme.error) },
+            title = { Text("Batalkan Transaksi") },
+            text = {
+                Text("Batalkan transaksi laundry pelanggan \"${tx.customer}\"?")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.cancelTransaction(tx.id)
+                        txToCancel = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Batalkan") }
+            },
+            dismissButton = {
+                TextButton(onClick = { txToCancel = null }) { Text("Tutup") }
+            }
+        )
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Daftar Transaksi") },
@@ -143,30 +222,70 @@ fun TransactionListScreen(
             Box(modifier = Modifier.fillMaxSize().padding(padding)) {
                 LoadingScreen("Memuat transaksi...")
             }
-        } else if (state.transactions.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.Receipt, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Belum ada transaksi")
-                    Text("Tambahkan transaksi baru", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
         } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
-                state.transactions.forEach { tx ->
-                    TransactionCard(
-                        tx = tx,
-                        onUpdateStatus = { if (tx.status != "selesai") selectedTx = tx },
-                        onShowReceipt = { receiptTx = tx }
-                    )
+                item {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                        OutlinedTextField(
+                            value = state.searchQuery,
+                            onValueChange = { viewModel.setSearchQuery(it) },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Cari pelanggan atau layanan...") },
+                            leadingIcon = { Icon(Icons.Default.Search, null) },
+                            trailingIcon = {
+                                if (state.searchQuery.isNotBlank()) {
+                                    IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                        Icon(Icons.Default.Clear, null)
+                                    }
+                                }
+                            },
+                            singleLine = true
+                        )
+                    }
+                }
+                item {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(STATUS_FILTER_OPTIONS) { (status, label) ->
+                            FilterChip(
+                                selected = filterStatus == status,
+                                onClick = { filterStatus = if (filterStatus == status) null else status },
+                                label = { Text(label) }
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                if (displayedTransactions.isEmpty()) {
+                    item {
+                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.Receipt, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(if (state.searchQuery.isNotBlank() || filterStatus != null) "Tidak ada hasil yang cocok" else "Belum ada transaksi")
+                                if (state.searchQuery.isBlank() && filterStatus == null) {
+                                    Text("Tambahkan transaksi baru", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    items(displayedTransactions) { tx ->
+                        TransactionCard(
+                            tx = tx,
+                            onUpdateStatus = { if (tx.status != "selesai" && tx.status != "dibatalkan") selectedTx = tx },
+                            onShowReceipt = { receiptTx = tx },
+                            onCancel = { if (tx.status != "selesai" && tx.status != "dibatalkan") txToCancel = tx }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    item { Spacer(modifier = Modifier.height(16.dp)) }
                 }
             }
         }
@@ -178,10 +297,13 @@ fun TransactionListScreen(
 private fun TransactionCard(
     tx: TransactionInfo,
     onUpdateStatus: () -> Unit,
-    onShowReceipt: () -> Unit
+    onShowReceipt: () -> Unit,
+    onCancel: () -> Unit
 ) {
+    val isDone = tx.status == "selesai" || tx.status == "dibatalkan"
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         onClick = onUpdateStatus
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -197,31 +319,46 @@ private fun TransactionCard(
                 StatusChip(status = tx.status)
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "Rp ${"%,.0f".format(tx.amount)}",
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary
                 )
-                Row {
-                    if (tx.status != "selesai") {
-                        Text(
-                            "Tap untuk update status",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                if (!isDone) {
+                    Text(
+                        "Tap untuk update status",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            TextButton(
-                onClick = onShowReceipt,
-                contentPadding = PaddingValues(0.dp),
-                modifier = Modifier.height(28.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Receipt, null, modifier = Modifier.size(14.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Lihat Struk", style = MaterialTheme.typography.labelSmall)
+                TextButton(
+                    onClick = onShowReceipt,
+                    contentPadding = PaddingValues(0.dp),
+                    modifier = Modifier.height(28.dp)
+                ) {
+                    Icon(Icons.Default.Receipt, null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Lihat & Bagikan Struk", style = MaterialTheme.typography.labelSmall)
+                }
+                if (!isDone) {
+                    TextButton(
+                        onClick = onCancel,
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.height(28.dp)
+                    ) {
+                        Icon(Icons.Default.Cancel, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.error)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Batalkan", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                    }
+                }
             }
         }
     }

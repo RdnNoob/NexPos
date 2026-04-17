@@ -1,7 +1,10 @@
 package com.nexpos.admin.ui.screens.account
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -9,6 +12,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nexpos.admin.ui.viewmodel.AccountViewModel
@@ -22,9 +28,34 @@ fun AccountScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showChangePasswordSection by remember { mutableStateOf(false) }
+    var currentPassword by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var showCurrentPw by remember { mutableStateOf(false) }
+    var showNewPw by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(state.isDeleted) {
         if (state.isDeleted) onAccountDeleted()
+    }
+
+    LaunchedEffect(state.successMessage) {
+        state.successMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearMessage()
+            currentPassword = ""
+            newPassword = ""
+            confirmPassword = ""
+            showChangePasswordSection = false
+        }
+    }
+
+    LaunchedEffect(state.error) {
+        state.error?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearMessage()
+        }
     }
 
     if (showDeleteDialog) {
@@ -54,6 +85,7 @@ fun AccountScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Informasi Akun", fontWeight = FontWeight.Bold) },
@@ -74,6 +106,7 @@ fun AccountScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -102,7 +135,7 @@ fun AccountScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                "Admin",
+                                "Admin / Pemilik",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -117,18 +150,102 @@ fun AccountScreen(
                 }
             }
 
-            state.error?.let { err ->
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
-                    Text(
-                        err,
-                        modifier = Modifier.padding(12.dp),
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        style = MaterialTheme.typography.bodySmall
-                    )
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Lock, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Ganti Password", fontWeight = FontWeight.SemiBold)
+                        }
+                        TextButton(onClick = { showChangePasswordSection = !showChangePasswordSection }) {
+                            Text(if (showChangePasswordSection) "Batal" else "Ubah")
+                        }
+                    }
+
+                    if (showChangePasswordSection) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = currentPassword,
+                            onValueChange = { currentPassword = it },
+                            label = { Text("Password Lama") },
+                            modifier = Modifier.fillMaxWidth(),
+                            visualTransformation = if (showCurrentPw) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { showCurrentPw = !showCurrentPw }) {
+                                    Icon(
+                                        if (showCurrentPw) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        null
+                                    )
+                                }
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = newPassword,
+                            onValueChange = { newPassword = it },
+                            label = { Text("Password Baru") },
+                            modifier = Modifier.fillMaxWidth(),
+                            visualTransformation = if (showNewPw) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { showNewPw = !showNewPw }) {
+                                    Icon(
+                                        if (showNewPw) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        null
+                                    )
+                                }
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = confirmPassword,
+                            onValueChange = { confirmPassword = it },
+                            label = { Text("Konfirmasi Password Baru") },
+                            modifier = Modifier.fillMaxWidth(),
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            singleLine = true,
+                            isError = confirmPassword.isNotBlank() && confirmPassword != newPassword
+                        )
+                        if (confirmPassword.isNotBlank() && confirmPassword != newPassword) {
+                            Text(
+                                "Password tidak cocok",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = {
+                                if (newPassword == confirmPassword) {
+                                    viewModel.changePassword(currentPassword, newPassword)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !state.isLoading &&
+                                currentPassword.isNotBlank() &&
+                                newPassword.isNotBlank() &&
+                                newPassword == confirmPassword
+                        ) {
+                            if (state.isLoading) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+                            Text("Simpan Password Baru")
+                        }
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Button(
                 onClick = { showDeleteDialog = true },

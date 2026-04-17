@@ -24,6 +24,7 @@ fun DashboardScreen(
     onNavigateToOutlets: () -> Unit,
     onNavigateToDevices: () -> Unit,
     onNavigateToTransactions: () -> Unit,
+    onNavigateToReports: () -> Unit,
     onNavigateToAccount: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     onNavigateToSuperAdmin: () -> Unit,
@@ -171,20 +172,24 @@ fun DashboardScreen(
                     }
                 }
                 item {
-                    Card(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToTransactions) {
-                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Receipt, null, tint = MaterialTheme.colorScheme.primary)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Semua Transaksi", fontWeight = FontWeight.SemiBold)
-                                Text(
-                                    "${state.transactions.size} transaksi",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Icon(Icons.Default.ChevronRight, null)
-                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        MenuCard(
+                            title = "Transaksi",
+                            subtitle = "${state.transactions.size} transaksi",
+                            icon = Icons.Default.Receipt,
+                            onClick = onNavigateToTransactions,
+                            modifier = Modifier.weight(1f)
+                        )
+                        MenuCard(
+                            title = "Laporan",
+                            subtitle = "Statistik & rekap",
+                            icon = Icons.Default.BarChart,
+                            onClick = onNavigateToReports,
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
                 if (state.transactions.isNotEmpty()) {

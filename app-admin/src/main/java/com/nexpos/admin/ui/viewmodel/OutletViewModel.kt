@@ -6,6 +6,7 @@ import com.nexpos.core.data.api.NexPosApi
 import com.nexpos.core.data.local.SessionManager
 import com.nexpos.core.data.model.CreateOutletRequest
 import com.nexpos.core.data.model.OutletInfo
+import com.nexpos.core.data.model.UpdateOutletRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -95,6 +96,42 @@ class OutletViewModel @Inject constructor(
             } catch (e: Exception) {
                 val detail = e.message?.take(120) ?: e.javaClass.simpleName
                 _state.value = _state.value.copy(isLoading = false, error = "Gagal membuat outlet: $detail")
+            }
+        }
+    }
+
+    fun updateOutlet(outletId: Int, newName: String) {
+        if (newName.isBlank()) {
+            _state.value = _state.value.copy(error = "Nama outlet tidak boleh kosong")
+            return
+        }
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true, error = null)
+            try {
+                val tokenRaw = session.getToken()
+                if (tokenRaw.isNullOrEmpty()) {
+                    _state.value = _state.value.copy(isLoading = false, error = "Sesi tidak valid")
+                    return@launch
+                }
+                val token = "Bearer $tokenRaw"
+                val res = api.updateOutlet(token, outletId, UpdateOutletRequest(newName.trim()))
+                if (res.isSuccessful) {
+                    _state.value = _state.value.copy(isLoading = false, successMessage = "Nama outlet berhasil diperbarui!")
+                    loadOutlets()
+                } else {
+                    val msg = when (res.code()) {
+                        404 -> "Outlet tidak ditemukan"
+                        else -> "Gagal memperbarui outlet (${res.code()})"
+                    }
+                    _state.value = _state.value.copy(isLoading = false, error = msg)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IOException) {
+                _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server. Periksa koneksi internet.")
+            } catch (e: Exception) {
+                val detail = e.message?.take(120) ?: e.javaClass.simpleName
+                _state.value = _state.value.copy(isLoading = false, error = "Gagal memperbarui outlet: $detail")
             }
         }
     }

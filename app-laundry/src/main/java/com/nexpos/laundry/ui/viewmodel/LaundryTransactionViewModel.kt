@@ -9,6 +9,7 @@ import com.nexpos.core.data.model.TransactionInfo
 import com.nexpos.core.data.model.UpdateStatusRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -19,8 +20,19 @@ data class LaundryTxState(
     val isLoading: Boolean = false,
     val transactions: List<TransactionInfo> = emptyList(),
     val error: String? = null,
-    val successMessage: String? = null
-)
+    val successMessage: String? = null,
+    val searchQuery: String = ""
+) {
+    val filteredTransactions: List<TransactionInfo>
+        get() = if (searchQuery.isBlank()) transactions
+        else {
+            val q = searchQuery.lowercase()
+            transactions.filter {
+                it.customer.lowercase().contains(q) ||
+                (it.service?.lowercase()?.contains(q) == true)
+            }
+        }
+}
 
 @HiltViewModel
 class LaundryTransactionViewModel @Inject constructor(
@@ -31,9 +43,22 @@ class LaundryTransactionViewModel @Inject constructor(
     private val _state = MutableStateFlow(LaundryTxState())
     val state: StateFlow<LaundryTxState> = _state
 
-    fun loadTransactions() {
+    init {
+        startPolling()
+    }
+
+    private fun startPolling() {
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, error = null)
+            while (true) {
+                loadTransactions(silent = _state.value.transactions.isNotEmpty())
+                delay(30_000L)
+            }
+        }
+    }
+
+    fun loadTransactions(silent: Boolean = false) {
+        viewModelScope.launch {
+            if (!silent) _state.value = _state.value.copy(isLoading = true, error = null)
             try {
                 val tokenRaw = session.getToken()
                 if (tokenRaw.isNullOrEmpty()) {
@@ -44,17 +69,21 @@ class LaundryTransactionViewModel @Inject constructor(
                 val outletId = session.getOutletId()
                 val res = api.getTransactions(token, outletId)
                 if (res.isSuccessful) {
-                    _state.value = LaundryTxState(transactions = res.body()?.transactions ?: emptyList())
+                    _state.value = _state.value.copy(
+                        isLoading = false,
+                        transactions = res.body()?.transactions ?: emptyList(),
+                        error = null
+                    )
                 } else {
-                    _state.value = LaundryTxState(error = "Gagal memuat transaksi (${res.code()})")
+                    if (!silent) _state.value = LaundryTxState(error = "Gagal memuat transaksi (${res.code()})")
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: IOException) {
-                _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server. Periksa koneksi internet.")
+                if (!silent) _state.value = _state.value.copy(isLoading = false, error = "Gagal terhubung ke server. Periksa koneksi internet.")
             } catch (e: Exception) {
                 val detail = e.message?.take(120) ?: e.javaClass.simpleName
-                _state.value = _state.value.copy(isLoading = false, error = "Gagal memuat: $detail")
+                if (!silent) _state.value = _state.value.copy(isLoading = false, error = "Gagal memuat: $detail")
             }
         }
     }
@@ -83,10 +112,7 @@ class LaundryTransactionViewModel @Inject constructor(
                     CreateTransactionRequest(outletId, customerId, serviceId, quantity)
                 )
                 if (res.isSuccessful) {
-                    _state.value = _state.value.copy(
-                        isLoading = false,
-                        successMessage = "Transaksi berhasil dibuat!"
-                    )
+                    _state.value = _state.value.copy(isLoading = false, successMessage = "Transaksi berhasil dibuat!")
                 } else {
                     val msg = when (res.code()) {
                         401 -> "Sesi tidak valid, silakan login ulang"
@@ -119,7 +145,7 @@ class LaundryTransactionViewModel @Inject constructor(
                 val res = api.updateTransactionStatus(token, UpdateStatusRequest(transactionId, newStatus))
                 if (res.isSuccessful) {
                     _state.value = _state.value.copy(successMessage = "Status diperbarui ke: ${newStatus.replaceFirstChar { it.uppercase() }}")
-                    loadTransactions()
+                    loadTransactions(silent = true)
                 } else {
                     val msg = when (res.code()) {
                         404 -> "Transaksi tidak ditemukan"
@@ -137,6 +163,14 @@ class LaundryTransactionViewModel @Inject constructor(
                 _state.value = _state.value.copy(error = "Gagal update status: $detail")
             }
         }
+    }
+
+    fun cancelTransaction(transactionId: Int) {
+        updateStatus(transactionId, "dibatalkan")
+    }
+
+    fun setSearchQuery(query: String) {
+        _state.value = _state.value.copy(searchQuery = query)
     }
 
     fun clearMessage() { _state.value = _state.value.copy(successMessage = null, error = null) }

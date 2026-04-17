@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import pool from "../db/client";
 import { sendOtpEmail } from "../utils/email";
+import { authenticateToken, AuthRequest } from "../middleware/auth";
 
 const router = Router();
 
@@ -444,6 +445,44 @@ router.post("/reset-password", async (req: Request, res: Response): Promise<void
     res.json({ message: "Password berhasil diperbarui. Silakan login dengan password baru." });
   } catch (err) {
     console.error("[reset-password]", err);
+    res.status(500).json({ message: "Terjadi kesalahan server" });
+  }
+});
+
+// PUT /auth/change-password - ganti password (butuh token)
+router.put("/change-password", authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    res.status(400).json({ message: "Password lama dan password baru wajib diisi" });
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    res.status(400).json({ message: "Password baru minimal 6 karakter" });
+    return;
+  }
+
+  try {
+    const result = await pool.query("SELECT * FROM users WHERE id = $1", [req.userId]);
+    if (result.rows.length === 0) {
+      res.status(404).json({ message: "Pengguna tidak ditemukan" });
+      return;
+    }
+
+    const user = result.rows[0];
+    const valid = await bcrypt.compare(currentPassword, user.password);
+    if (!valid) {
+      res.status(401).json({ message: "Password lama tidak sesuai" });
+      return;
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await pool.query("UPDATE users SET password = $1 WHERE id = $2", [hashedPassword, req.userId]);
+
+    res.json({ message: "Password berhasil diperbarui" });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Terjadi kesalahan server" });
   }
 });

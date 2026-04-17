@@ -71,6 +71,43 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response): Pro
   }
 });
 
+// PUT /outlets/:id - ganti nama outlet
+router.put("/:id", authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
+  const outletId = parseInt(req.params.id, 10);
+  const { name } = req.body;
+
+  if (!name || String(name).trim().length === 0) {
+    res.status(400).json({ message: "Nama outlet tidak boleh kosong" });
+    return;
+  }
+
+  try {
+    const result = await pool.query(
+      "UPDATE outlets SET name = $1 WHERE client_id::text = $2::text AND owner_id::text = $3::text RETURNING *",
+      [String(name).trim(), outletId, String(req.userId)]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ message: "Outlet tidak ditemukan atau bukan milik Anda" });
+      return;
+    }
+
+    const outlet = result.rows[0];
+    res.json({
+      outlet: {
+        id: safeInt(outlet.client_id ?? outlet.id),
+        ownerId: String(outlet.owner_id),
+        name: outlet.name as string,
+        activationCode: outlet.activation_code as string,
+        createdAt: outlet.created_at,
+      },
+    });
+  } catch (err) {
+    console.error("[Outlets PUT]", err);
+    res.status(500).json({ message: "Terjadi kesalahan server" });
+  }
+});
+
 router.delete("/:id", authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
   const outletId = parseInt(req.params.id, 10);
   if (!outletId || isNaN(outletId)) {

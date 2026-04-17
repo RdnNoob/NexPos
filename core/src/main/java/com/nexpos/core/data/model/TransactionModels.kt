@@ -1,10 +1,15 @@
 package com.nexpos.core.data.model
 
+import com.google.gson.annotations.SerializedName
+
 data class TransactionInfo(
     val id: Int,
-    val outletId: Int,
+    val outletId: Int = 0,
+    @SerializedName(value = "customer", alternate = ["customerName"])
     val customer: String,
+    @SerializedName(value = "service", alternate = ["serviceName"])
     val service: String? = null,
+    @SerializedName(value = "amount", alternate = ["totalAmount"])
     val amount: Double,
     val status: String,
     val createdAt: String,
@@ -88,4 +93,28 @@ data class UpdateStatusRequest(
 
 data class TransactionListResponse(
     val transactions: List<TransactionInfo>
+)
+
+data class ReportSummary(
+    val totalTransactions: Int = 0,
+    val totalIncome: Double = 0.0,
+    val totalDiterima: Int = 0,
+    val totalDicuci: Int = 0,
+    val totalDisetrika: Int = 0,
+    val totalSelesai: Int = 0,
+    val totalDibatalkan: Int = 0
+)
+
+data class DailySummary(
+    val date: String,
+    val count: Int,
+    val income: Double
+)
+
+data class DailySummaryResponse(
+    val days: List<DailySummary>
+)
+
+data class StatusOnlyRequest(
+    val status: String
 )

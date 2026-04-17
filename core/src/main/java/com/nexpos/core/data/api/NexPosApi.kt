@@ -30,6 +30,12 @@ interface NexPosApi {
     @DELETE("/api/auth/account")
     suspend fun deleteAccount(@Header("Authorization") token: String): Response<MessageResponse>
 
+    @PUT("/api/auth/change-password")
+    suspend fun changePassword(
+        @Header("Authorization") token: String,
+        @Body request: ChangePasswordRequest
+    ): Response<MessageResponse>
+
     @GET("/api/outlets")
     suspend fun getOutlets(@Header("Authorization") token: String): Response<OutletListResponse>
 
@@ -38,6 +44,13 @@ interface NexPosApi {
         @Header("Authorization") token: String,
         @Body request: CreateOutletRequest
     ): Response<OutletResponse>
+
+    @PUT("/api/outlets/{id}")
+    suspend fun updateOutlet(
+        @Header("Authorization") token: String,
+        @Path("id") outletId: Int,
+        @Body request: UpdateOutletRequest
+    ): Response<MessageResponse>
 
     @DELETE("/api/outlets/{id}")
     suspend fun deleteOutlet(
@@ -84,6 +97,12 @@ interface NexPosApi {
         @Header("Authorization") token: String,
         @Body request: CreateTransactionRequest
     ): Response<TransactionInfo>
+
+    @DELETE("/api/transactions/{id}")
+    suspend fun deleteTransaction(
+        @Header("Authorization") token: String,
+        @Path("id") transactionId: Int
+    ): Response<MessageResponse>
 
     @GET("/api/services")
     suspend fun getServices(
@@ -141,6 +160,13 @@ interface NexPosApi {
         @Body request: UpdateStatusRequest
     ): Response<TransactionInfo>
 
+    @PUT("/api/transactions/{id}/status")
+    suspend fun updateTransactionStatusById(
+        @Header("Authorization") token: String,
+        @Path("id") transactionId: Int,
+        @Body request: StatusOnlyRequest
+    ): Response<MessageResponse>
+
     @GET("/api/notifications")
     suspend fun getNotifications(@Header("Authorization") token: String): Response<NotificationListResponse>
 
@@ -149,6 +175,18 @@ interface NexPosApi {
         @Header("Authorization") token: String,
         @Path("id") notificationId: Int
     ): Response<MessageResponse>
+
+    @GET("/api/reports/summary")
+    suspend fun getReportSummary(
+        @Header("Authorization") token: String,
+        @Query("outletId") outletId: Int? = null
+    ): Response<ReportSummary>
+
+    @GET("/api/reports/daily")
+    suspend fun getReportDaily(
+        @Header("Authorization") token: String,
+        @Query("outletId") outletId: Int? = null
+    ): Response<DailySummaryResponse>
 
     @POST("/api/super-admin/login")
     suspend fun superAdminLogin(@Body request: SuperAdminLoginRequest): Response<SuperAdminLoginResponse>

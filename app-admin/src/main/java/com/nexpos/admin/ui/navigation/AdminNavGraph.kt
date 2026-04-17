@@ -15,6 +15,7 @@ import com.nexpos.admin.ui.screens.devices.DevicesScreen
 import com.nexpos.admin.ui.screens.notifications.NotificationsScreen
 import com.nexpos.admin.ui.screens.outlets.CreateOutletScreen
 import com.nexpos.admin.ui.screens.outlets.OutletsScreen
+import com.nexpos.admin.ui.screens.reports.ReportsScreen
 import com.nexpos.admin.ui.screens.splash.SplashScreen
 import com.nexpos.admin.ui.screens.superadmin.SuperAdminDashboardScreen
 import com.nexpos.admin.ui.screens.superadmin.SuperAdminLoginScreen
@@ -31,6 +32,7 @@ sealed class AdminScreen(val route: String) {
     object Devices : AdminScreen("devices")
     object Transactions : AdminScreen("transactions")
     object Notifications : AdminScreen("notifications")
+    object Reports : AdminScreen("reports")
     object OutletTransactions : AdminScreen("transactions/{outletId}") {
         fun createRoute(outletId: Int) = "transactions/$outletId"
     }
@@ -124,11 +126,15 @@ fun AdminNavGraph() {
                 onNavigateToOutlets = { navController.navigate(AdminScreen.Outlets.route) },
                 onNavigateToDevices = { navController.navigate(AdminScreen.Devices.route) },
                 onNavigateToTransactions = { navController.navigate(AdminScreen.Transactions.route) },
+                onNavigateToReports = { navController.navigate(AdminScreen.Reports.route) },
                 onNavigateToAccount = { navController.navigate(AdminScreen.Account.route) },
                 onNavigateToNotifications = { navController.navigate(AdminScreen.Notifications.route) },
                 onNavigateToSuperAdmin = { navController.navigate(AdminScreen.SuperAdminLogin.route) },
                 onLogout = { navController.navigate(AdminScreen.Login.route) { popUpTo(0) } }
             )
+        }
+        composable(AdminScreen.Reports.route) {
+            ReportsScreen(onNavigateBack = { navController.popBackStack() })
         }
         composable(AdminScreen.Notifications.route) {
             NotificationsScreen(onNavigateBack = { navController.popBackStack() })
