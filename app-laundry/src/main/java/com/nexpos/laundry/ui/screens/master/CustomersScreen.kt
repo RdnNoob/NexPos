@@ -19,6 +19,80 @@ import com.nexpos.laundry.ui.viewmodel.LaundryMasterDataViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun EditCustomerDialog(
+    customer: CustomerInfo,
+    onDismiss: () -> Unit,
+    onConfirm: (name: String, phone: String, address: String) -> Unit
+) {
+    var editName by remember { mutableStateOf(customer.name) }
+    var editPhone by remember { mutableStateOf(customer.phone ?: "") }
+    var editAddress by remember { mutableStateOf(customer.address ?: "") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Pelanggan") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = editName,
+                    onValueChange = { editName = it },
+                    label = { Text("Nama pelanggan") },
+                    leadingIcon = { Icon(Icons.Default.Person, null) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = editPhone,
+                    onValueChange = { editPhone = it.filter { c -> c.isDigit() || c == '+' } },
+                    label = { Text("Nomor HP") },
+                    leadingIcon = { Icon(Icons.Default.Phone, null) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = editAddress,
+                    onValueChange = { editAddress = it },
+                    label = { Text("Alamat") },
+                    leadingIcon = { Icon(Icons.Default.Home, null) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(editName, editPhone, editAddress) },
+                enabled = editName.isNotBlank()
+            ) { Text("Simpan") }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) { Text("Batal") }
+        }
+    )
+}
+
+@Composable
+private fun DeleteCustomerDialog(
+    customer: CustomerInfo,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Hapus Pelanggan") },
+        text = { Text("Yakin ingin menghapus pelanggan \"${customer.name}\"?") },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) { Text("Hapus") }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) { Text("Batal") }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun CustomersScreen(
     onNavigateBack: () -> Unit,
     viewModel: LaundryMasterDataViewModel = hiltViewModel()
@@ -32,78 +106,28 @@ fun CustomersScreen(
     var deleteConfirmCustomer by remember { mutableStateOf<CustomerInfo?>(null) }
 
     LaunchedEffect(Unit) { viewModel.loadCustomers() }
-
     LaunchedEffect(state.successMessage) {
         if (state.successMessage != null) viewModel.clearMessage()
     }
 
-    if (editingCustomer != null) {
-        val cust = editingCustomer!!
-        var editName by remember(cust.id) { mutableStateOf(cust.name) }
-        var editPhone by remember(cust.id) { mutableStateOf(cust.phone ?: "") }
-        var editAddress by remember(cust.id) { mutableStateOf(cust.address ?: "") }
-
-        AlertDialog(
-            onDismissRequest = { editingCustomer = null },
-            title = { Text("Edit Pelanggan") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = editName,
-                        onValueChange = { editName = it },
-                        label = { Text("Nama pelanggan") },
-                        leadingIcon = { Icon(Icons.Default.Person, null) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = editPhone,
-                        onValueChange = { editPhone = it.filter { c -> c.isDigit() || c == '+' } },
-                        label = { Text("Nomor HP") },
-                        leadingIcon = { Icon(Icons.Default.Phone, null) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = editAddress,
-                        onValueChange = { editAddress = it },
-                        label = { Text("Alamat") },
-                        leadingIcon = { Icon(Icons.Default.Home, null) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.updateCustomer(cust.id, editName, editPhone, editAddress)
-                        editingCustomer = null
-                    },
-                    enabled = editName.isNotBlank()
-                ) { Text("Simpan") }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { editingCustomer = null }) { Text("Batal") }
+    editingCustomer?.let { cust ->
+        EditCustomerDialog(
+            customer = cust,
+            onDismiss = { editingCustomer = null },
+            onConfirm = { n, p, a ->
+                viewModel.updateCustomer(cust.id, n, p, a)
+                editingCustomer = null
             }
         )
     }
 
-    if (deleteConfirmCustomer != null) {
-        val cust = deleteConfirmCustomer!!
-        AlertDialog(
-            onDismissRequest = { deleteConfirmCustomer = null },
-            title = { Text("Hapus Pelanggan") },
-            text = { Text("Yakin ingin menghapus pelanggan \"${cust.name}\"?") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.deleteCustomer(cust.id)
-                        deleteConfirmCustomer = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Text("Hapus") }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { deleteConfirmCustomer = null }) { Text("Batal") }
+    deleteConfirmCustomer?.let { cust ->
+        DeleteCustomerDialog(
+            customer = cust,
+            onDismiss = { deleteConfirmCustomer = null },
+            onConfirm = {
+                viewModel.deleteCustomer(cust.id)
+                deleteConfirmCustomer = null
             }
         )
     }

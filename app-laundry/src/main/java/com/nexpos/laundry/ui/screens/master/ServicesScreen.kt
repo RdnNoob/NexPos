@@ -21,6 +21,78 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun EditServiceDialog(
+    service: ServiceInfo,
+    onDismiss: () -> Unit,
+    onConfirm: (name: String, price: String, unit: String) -> Unit
+) {
+    var editName by remember { mutableStateOf(service.name) }
+    var editPrice by remember { mutableStateOf(service.price.toString()) }
+    var editUnit by remember { mutableStateOf(service.unit ?: "kg") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Layanan") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = editName,
+                    onValueChange = { editName = it },
+                    label = { Text("Nama layanan") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = editPrice,
+                    onValueChange = { editPrice = it.filter { c -> c.isDigit() } },
+                    label = { Text("Harga") },
+                    prefix = { Text("Rp ") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = editUnit,
+                    onValueChange = { editUnit = it },
+                    label = { Text("Satuan") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(editName, editPrice, editUnit) },
+                enabled = editName.isNotBlank() && editPrice.isNotBlank() && editUnit.isNotBlank()
+            ) { Text("Simpan") }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) { Text("Batal") }
+        }
+    )
+}
+
+@Composable
+private fun DeleteServiceDialog(
+    service: ServiceInfo,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Hapus Layanan") },
+        text = { Text("Yakin ingin menghapus layanan \"${service.name}\"? Tindakan ini tidak bisa dibatalkan.") },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) { Text("Hapus") }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) { Text("Batal") }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun ServicesScreen(
     onNavigateBack: () -> Unit,
     viewModel: LaundryMasterDataViewModel = hiltViewModel()
@@ -36,76 +108,28 @@ fun ServicesScreen(
     val rupiah = NumberFormat.getNumberInstance(Locale("id", "ID"))
 
     LaunchedEffect(Unit) { viewModel.loadServices() }
-
     LaunchedEffect(state.successMessage) {
         if (state.successMessage != null) viewModel.clearMessage()
     }
 
-    if (editingService != null) {
-        val svc = editingService!!
-        var editName by remember(svc.id) { mutableStateOf(svc.name) }
-        var editPrice by remember(svc.id) { mutableStateOf(svc.price.toString()) }
-        var editUnit by remember(svc.id) { mutableStateOf(svc.unit ?: "kg") }
-
-        AlertDialog(
-            onDismissRequest = { editingService = null },
-            title = { Text("Edit Layanan") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = editName,
-                        onValueChange = { editName = it },
-                        label = { Text("Nama layanan") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = editPrice,
-                        onValueChange = { editPrice = it.filter { c -> c.isDigit() } },
-                        label = { Text("Harga") },
-                        prefix = { Text("Rp ") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = editUnit,
-                        onValueChange = { editUnit = it },
-                        label = { Text("Satuan") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.updateService(svc.id, editName, editPrice, editUnit)
-                        editingService = null
-                    },
-                    enabled = editName.isNotBlank() && editPrice.isNotBlank() && editUnit.isNotBlank()
-                ) { Text("Simpan") }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { editingService = null }) { Text("Batal") }
+    editingService?.let { svc ->
+        EditServiceDialog(
+            service = svc,
+            onDismiss = { editingService = null },
+            onConfirm = { n, p, u ->
+                viewModel.updateService(svc.id, n, p, u)
+                editingService = null
             }
         )
     }
 
-    if (deleteConfirmService != null) {
-        val svc = deleteConfirmService!!
-        AlertDialog(
-            onDismissRequest = { deleteConfirmService = null },
-            title = { Text("Hapus Layanan") },
-            text = { Text("Yakin ingin menghapus layanan \"${svc.name}\"? Tindakan ini tidak bisa dibatalkan.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.deleteService(svc.id)
-                        deleteConfirmService = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Text("Hapus") }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { deleteConfirmService = null }) { Text("Batal") }
+    deleteConfirmService?.let { svc ->
+        DeleteServiceDialog(
+            service = svc,
+            onDismiss = { deleteConfirmService = null },
+            onConfirm = {
+                viewModel.deleteService(svc.id)
+                deleteConfirmService = null
             }
         )
     }
