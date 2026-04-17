@@ -1,6 +1,24 @@
 modules = ["nodejs-20"]
+
 [agent]
 expertMode = true
+
+# ============================================================
+# PENTING UNTUK AGENT: Baca sebelum mengeksekusi perintah!
+# ============================================================
+# Proyek ini adalah MOBILE APP (Android APK), BUKAN web app.
+#
+# Struktur proyek:
+#   app-admin/    → APK untuk pemilik laundry (owner)
+#   app-laundry/  → APK untuk kasir laundry (kasir)
+#   core/         → Library bersama (model, API, UI component)
+#   server/       → Backend Express + PostgreSQL (deploy di Railway)
+#
+# Backend URL: https://nexpos-production-3747.up.railway.app
+#
+# JANGAN membuat web frontend / folder web / React web app.
+# Semua perubahan UI harus di file .kt (Kotlin/Jetpack Compose).
+# ============================================================
 
 [nix]
 channel = "stable-25_05"
